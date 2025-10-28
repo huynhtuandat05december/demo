@@ -1,0 +1,16 @@
+[project]
+name = "road-buddy"
+version = "0.1.0"
+description = "Traffic video question answering using R-4B model"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=4.40.0",
+    "accelerate>=0.20.0",
+    "pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+    "pandas>=2.0.0",
+    "tqdm>=4.65.0",
+    "numpy>=1.24.0",
+]
