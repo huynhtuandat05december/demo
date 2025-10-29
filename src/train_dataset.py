@@ -10,8 +10,19 @@ from typing import Dict, List, Optional, Tuple
 from torch.utils.data import Dataset
 from PIL import Image
 
-from src import prompts
-from .inference import load_video, build_transform, dynamic_preprocess, IMAGENET_MEAN, IMAGENET_STD
+# Handle imports from different locations
+try:
+    from src import prompts
+except ModuleNotFoundError:
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from src import prompts
+
+# Import from internvl3_8B module
+try:
+    from .internvl3_8B.inference import load_video, build_transform, dynamic_preprocess, IMAGENET_MEAN, IMAGENET_STD
+except ImportError:
+    from src.internvl3_8B.inference import load_video, build_transform, dynamic_preprocess, IMAGENET_MEAN, IMAGENET_STD
 
 
 class TrafficVideoDataset(Dataset):

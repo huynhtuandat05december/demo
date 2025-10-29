@@ -313,6 +313,12 @@ def main():
         print("\n❌ Dataset loading test FAILED")
         return 1
 
+    # Validate both datasets were created (val_dataset checked here)
+    if val_dataset is None:
+        print("\n⚠ Warning: Validation dataset is None")
+    else:
+        print(f"✓ Both train ({len(train_dataset)}) and val ({len(val_dataset)}) datasets loaded")
+
     # Test 2: DataLoader
     if not test_dataloader(train_dataset, num_samples=3):
         print("\n❌ DataLoader test FAILED")

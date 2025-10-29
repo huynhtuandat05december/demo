@@ -10,7 +10,14 @@ from typing import Dict, List, Optional, Tuple
 from torch.utils.data import Dataset
 from PIL import Image
 
-from src import prompts
+# Handle imports from different locations
+try:
+    from src import prompts
+except ModuleNotFoundError:
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from src import prompts
+
 from .inference import load_video, build_transform, dynamic_preprocess, IMAGENET_MEAN, IMAGENET_STD
 
 
