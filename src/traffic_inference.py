@@ -4,22 +4,161 @@ InternVL3 Traffic Video Inference Pipeline.
 Enhanced inference for traffic dashcam videos using InternVL3-8B with:
 - Multi-frame processing (6-12 frames adaptive)
 - Traffic-optimized prompts
+- Official InternVL3 video handling
 - Support for both CPU and CUDA
-- High accuracy configuration (float32, max_num=24)
 """
 
 import json
 import re
+import math
 import torch
+import numpy as np
+import torchvision.transforms as T
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from PIL import Image
 from tqdm import tqdm
 import pandas as pd
 from transformers import AutoModel, AutoTokenizer
+from torchvision.transforms.functional import InterpolationMode
+from decord import VideoReader, cpu
 
-from src.video_processor import VideoProcessor
 from src import traffic_prompts
+
+# ImageNet normalization constants
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
+
+
+def build_transform(input_size):
+    """Build image transformation pipeline with ImageNet normalization."""
+    transform = T.Compose([
+        T.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
+        T.Resize((input_size, input_size), interpolation=InterpolationMode.BICUBIC),
+        T.ToTensor(),
+        T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
+    ])
+    return transform
+
+
+def find_closest_aspect_ratio(aspect_ratio, target_ratios, width, height, image_size):
+    """Find the closest aspect ratio from target ratios."""
+    best_ratio_diff = float('inf')
+    best_ratio = (1, 1)
+    area = width * height
+    for ratio in target_ratios:
+        target_aspect_ratio = ratio[0] / ratio[1]
+        ratio_diff = abs(aspect_ratio - target_aspect_ratio)
+        if ratio_diff < best_ratio_diff:
+            best_ratio_diff = ratio_diff
+            best_ratio = ratio
+        elif ratio_diff == best_ratio_diff:
+            if area > 0.5 * image_size * image_size * ratio[0] * ratio[1]:
+                best_ratio = ratio
+    return best_ratio
+
+
+def dynamic_preprocess(image, min_num=1, max_num=12, image_size=448, use_thumbnail=False):
+    """
+    Dynamically preprocess image into tiles for better detail.
+
+    This is InternVL3's approach to handle high-resolution images by splitting
+    them into tiles while maintaining aspect ratio.
+    """
+    orig_width, orig_height = image.size
+    aspect_ratio = orig_width / orig_height
+
+    # Calculate target aspect ratio grid
+    target_ratios = set(
+        (i, j) for n in range(min_num, max_num + 1)
+        for i in range(1, n + 1)
+        for j in range(1, n + 1)
+        if i * j <= max_num and i * j >= min_num
+    )
+    target_ratios = sorted(target_ratios, key=lambda x: x[0] * x[1])
+
+    # Find closest aspect ratio
+    target_aspect_ratio = find_closest_aspect_ratio(
+        aspect_ratio, target_ratios, orig_width, orig_height, image_size
+    )
+
+    # Calculate target dimensions
+    target_width = image_size * target_aspect_ratio[0]
+    target_height = image_size * target_aspect_ratio[1]
+    blocks = target_aspect_ratio[0] * target_aspect_ratio[1]
+
+    # Resize and split image
+    resized_img = image.resize((target_width, target_height))
+    processed_images = []
+    for i in range(blocks):
+        box = (
+            (i % (target_width // image_size)) * image_size,
+            (i // (target_width // image_size)) * image_size,
+            ((i % (target_width // image_size)) + 1) * image_size,
+            ((i // (target_width // image_size)) + 1) * image_size
+        )
+        split_img = resized_img.crop(box)
+        processed_images.append(split_img)
+
+    assert len(processed_images) == blocks
+
+    # Add thumbnail for global context
+    if use_thumbnail and len(processed_images) != 1:
+        thumbnail_img = image.resize((image_size, image_size))
+        processed_images.append(thumbnail_img)
+
+    return processed_images
+
+
+def get_index(bound, fps, max_frame, first_idx=0, num_segments=32):
+    """Get frame indices for video sampling."""
+    if bound:
+        start, end = bound[0], bound[1]
+    else:
+        start, end = -100000, 100000
+    start_idx = max(first_idx, round(start * fps))
+    end_idx = min(round(end * fps), max_frame)
+    seg_size = float(end_idx - start_idx) / num_segments
+    frame_indices = np.array([
+        int(start_idx + (seg_size / 2) + np.round(seg_size * idx))
+        for idx in range(num_segments)
+    ])
+    return frame_indices
+
+
+def load_video(video_path, bound=None, input_size=448, max_num=1, num_segments=32):
+    """
+    Load video frames using InternVL3's official approach.
+
+    Args:
+        video_path: Path to video file
+        bound: Optional (start, end) time bounds in seconds
+        input_size: Input size for image preprocessing
+        max_num: Max number of tiles per frame
+        num_segments: Number of frames to extract
+
+    Returns:
+        pixel_values: Tensor of processed frames
+        num_patches_list: List of number of patches per frame
+    """
+    vr = VideoReader(str(video_path), ctx=cpu(0), num_threads=1)
+    max_frame = len(vr) - 1
+    fps = float(vr.get_avg_fps())
+
+    pixel_values_list, num_patches_list = [], []
+    transform = build_transform(input_size=input_size)
+    frame_indices = get_index(bound, fps, max_frame, first_idx=0, num_segments=num_segments)
+
+    for frame_index in frame_indices:
+        img = Image.fromarray(vr[frame_index].asnumpy()).convert('RGB')
+        img = dynamic_preprocess(img, image_size=input_size, use_thumbnail=True, max_num=max_num)
+        pixel_values = [transform(tile) for tile in img]
+        pixel_values = torch.stack(pixel_values)
+        num_patches_list.append(pixel_values.shape[0])
+        pixel_values_list.append(pixel_values)
+
+    pixel_values = torch.cat(pixel_values_list)
+    return pixel_values, num_patches_list
 
 
 class InternVL3TrafficInference:
@@ -101,14 +240,17 @@ class InternVL3TrafficInference:
         # Load model
         print("Loading InternVL3-8B model...")
         try:
+            # Use bfloat16 for better compatibility and performance
+            torch_dtype = torch.bfloat16 if device == "cuda" and torch.cuda.is_available() else torch.float32
+
             self.model = AutoModel.from_pretrained(
                 model_name,
                 trust_remote_code=True,
-                torch_dtype=torch.float32,  # High accuracy
+                torch_dtype=torch_dtype,
                 low_cpu_mem_usage=True,
             ).to(device)
             self.model.eval()
-            print("✓ Model loaded successfully")
+            print(f"✓ Model loaded successfully (dtype: {torch_dtype})")
         except Exception as e:
             print(f"❌ Error loading model: {e}")
             raise
@@ -125,74 +267,9 @@ class InternVL3TrafficInference:
             print(f"❌ Error loading tokenizer: {e}")
             raise
 
-        # Initialize video processor
-        print("Initializing video processor...")
-        self.video_processor = VideoProcessor()
-        print("✓ Video processor ready")
-
         print(f"\n{'='*60}")
         print("Pipeline initialization complete!")
         print(f"{'='*60}\n")
-
-    def _extract_frames_smart(
-        self,
-        video_path: Path,
-        support_frames: Optional[List[float]] = None
-    ) -> List[Image.Image]:
-        """
-        Intelligently extract frames from video.
-
-        Uses support_frames timestamps when available, otherwise adaptive sampling.
-
-        Args:
-            video_path: Path to video file
-            support_frames: Optional list of important timestamps
-
-        Returns:
-            List of PIL Images (6-12 frames)
-        """
-        if self.use_support_frames and support_frames and len(support_frames) > 0:
-            # Use support frames with context
-            return self.video_processor.extract_frames_with_support(
-                video_path=video_path,
-                support_frames=support_frames,
-                context_window=self.context_window,
-                min_frames=self.min_frames,
-                max_frames=self.max_frames
-            )
-        else:
-            # Use adaptive sampling
-            return self.video_processor.extract_frames_adaptive(
-                video_path=video_path,
-                min_frames=self.min_frames,
-                max_frames=self.max_frames
-            )
-
-    def _prepare_multiframe_inputs(
-        self,
-        frames: List[Image.Image],
-        prompt: str
-    ) -> Dict:
-        """
-        Prepare multi-frame inputs for InternVL3.
-
-        Args:
-            frames: List of PIL Images
-            prompt: Formatted prompt text
-
-        Returns:
-            Dictionary with pixel_values, question, and generation_config
-        """
-        # Use InternVL's load_image with list of frames
-        pixel_values = self.model.load_image(
-            frames,  # List of PIL Images
-            max_num=self.max_num
-        ).to(torch.float32).to(self.device)
-
-        return {
-            "pixel_values": pixel_values,
-            "question": prompt,
-        }
 
     def _format_prompt(
         self,
@@ -277,7 +354,7 @@ class InternVL3TrafficInference:
         verbose: bool = False
     ) -> str:
         """
-        Run inference on a single traffic video.
+        Run inference on a single traffic video using official InternVL3 approach.
 
         Args:
             video_path: Path to video file
@@ -290,28 +367,70 @@ class InternVL3TrafficInference:
             Predicted answer (A, B, C, or D)
         """
         try:
-            # Extract frames
-            frames = self._extract_frames_smart(video_path, support_frames)
+            # Determine number of frames to extract
+            num_segments = self.min_frames
+            if self.max_frames > self.min_frames:
+                # Use adaptive frame count based on support frames availability
+                if support_frames and len(support_frames) > 0:
+                    num_segments = min(max(len(support_frames) * 2, self.min_frames), self.max_frames)
+                else:
+                    num_segments = (self.min_frames + self.max_frames) // 2
 
-            if not frames:
-                print(f"⚠️  Warning: No frames extracted from {video_path}")
-                return "A"
-
-            num_frames = len(frames)
+            # Determine time bounds from support frames
+            bound = None
+            if support_frames and len(support_frames) > 0 and self.use_support_frames:
+                # Use support frames to determine video segment of interest
+                start_time = max(0, min(support_frames) - self.context_window)
+                end_time = max(support_frames) + self.context_window
+                bound = (start_time, end_time)
 
             if verbose:
-                print(f"Extracted {num_frames} frames")
-                if support_frames:
-                    print(f"Using support frames: {support_frames}")
+                print(f"Loading video: {video_path}")
+                print(f"  Num segments: {num_segments}")
+                print(f"  Max tiles per frame: {self.max_num}")
+                if bound:
+                    print(f"  Time bounds: {bound[0]:.2f}s - {bound[1]:.2f}s")
 
-            # Format prompt
-            prompt = self._format_prompt(question, choices, num_frames)
+            # Load video using official InternVL3 approach
+            pixel_values, num_patches_list = load_video(
+                video_path=video_path,
+                bound=bound,
+                input_size=448,  # Standard InternVL3 input size
+                max_num=self.max_num,
+                num_segments=num_segments
+            )
+
+            # Move to device and convert dtype
+            if self.device == "cuda" and torch.cuda.is_available():
+                pixel_values = pixel_values.to(torch.bfloat16).cuda()
+            else:
+                pixel_values = pixel_values.to(torch.float32).to(self.device)
 
             if verbose:
-                print(f"Prompt length: {len(prompt)} characters")
+                print(f"  Loaded {len(num_patches_list)} frames")
+                print(f"  Total patches: {sum(num_patches_list)}")
+                print(f"  Pixel values shape: {pixel_values.shape}")
 
-            # Prepare inputs
-            inputs = self._prepare_multiframe_inputs(frames, prompt)
+            # Format prompt with frame prefixes (InternVL3 style)
+            # Frame1: <image>\nFrame2: <image>\n...\n{question}
+            video_prefix = ''.join([f'Frame{i+1}: <image>\n' for i in range(len(num_patches_list))])
+            choices_str = "\n".join(choices)
+
+            # Use traffic-optimized prompt template
+            base_prompt = traffic_prompts.get_prompt_template(
+                question=question,
+                choices=choices,
+                num_frames=len(num_patches_list),
+                language='auto',
+                simple=self.simple_prompts
+            )
+
+            # Prepend frame markers
+            prompt = video_prefix + base_prompt
+
+            if verbose:
+                print(f"  Prompt length: {len(prompt)} characters")
+                print(f"  Prompt preview: {prompt[:200]}...")
 
             # Generation config
             generation_config = {
@@ -319,17 +438,20 @@ class InternVL3TrafficInference:
                 "do_sample": False,  # Greedy decoding for consistency
             }
 
-            # Generate response
+            # Generate response using InternVL3's chat with num_patches_list
             with torch.no_grad():
                 response = self.model.chat(
                     tokenizer=self.tokenizer,
-                    pixel_values=inputs["pixel_values"],
-                    question=inputs["question"],
+                    pixel_values=pixel_values,
+                    question=prompt,
                     generation_config=generation_config,
+                    num_patches_list=num_patches_list,
+                    history=None,
+                    return_history=False
                 )
 
             if verbose:
-                print(f"Model response: '{response}'")
+                print(f"  Model response: '{response}'")
 
             # Parse answer
             answer = self._parse_answer(response)
@@ -454,9 +576,6 @@ class InternVL3TrafficInference:
         # Show answer distribution
         print("\nAnswer distribution:")
         print(df["answer"].value_counts().sort_index())
-
-        # Clear cache
-        self.video_processor.clear_cache()
 
         print(f"\n{'='*60}")
         print("Pipeline Complete!")

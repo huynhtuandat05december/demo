@@ -573,6 +573,21 @@ python test_traffic_inference.py \
 
 ### Troubleshooting Traffic Inference
 
+**AttributeError: 'InternVLChatModel' object has no attribute 'load_image':**
+
+This has been fixed in the latest version. The code no longer uses `load_image` and instead uses `model.chat()` directly with PIL Images. See [FIX_LOAD_IMAGE_ERROR.md](FIX_LOAD_IMAGE_ERROR.md) for details.
+
+If you still encounter this:
+```bash
+# 1. Update transformers
+pip install --upgrade transformers
+
+# 2. Test with latest code
+python test_traffic_inference.py --samples 1 --verbose
+
+# 3. The code will automatically fall back to frame grid if needed
+```
+
 **CUDA Out of Memory:**
 ```bash
 # Option 1: Reduce frames
