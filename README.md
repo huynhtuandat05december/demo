@@ -79,33 +79,42 @@ pip install einops timm
 
 ## Supported Models
 
-- **YannQi/R-4B** (default) - No additional dependencies
-- **OpenGVLab/InternVL3-8B** - Requires: `pip install einops timm`
-- **Qwen/Qwen3-VL-8B-Instruct** - No additional dependencies
+- **YannQi/R-4B** (default) - No additional dependencies. Good balance of speed and accuracy.
+- **OpenGVLab/InternVL3-8B** - Requires: `pip install einops timm`. Higher accuracy but requires more GPU memory.
+- **Qwen/Qwen3-VL-8B-Instruct** - No additional dependencies. Recommended to use with CPU for testing due to memory requirements.
 
 ## Quick Testing
 
 Before running full training or inference, test your setup with these quick test scripts:
 
-### Test Inference (Single Example)
+### Test Inference (Single or Multiple Examples)
 
-Test the inference pipeline on a single example to verify everything works:
+Test the inference pipeline on one or more examples to verify everything works:
 
 ```bash
-# Test with default model and device
+# Test with default model and device (1 sample)
 python test_inference.py
 
-# Test with specific model
+# Test with specific models
 python test_inference.py --model YannQi/R-4B
+python test_inference.py --model OpenGVLab/InternVL3-8B
+python test_inference.py --model Qwen/Qwen3-VL-8B-Instruct
 
-# Test on CPU
+# Test on CPU (recommended if GPU memory is limited)
 python test_inference.py --device cpu
+
+# Test multiple samples
+python test_inference.py --samples 5
+python test_inference.py --samples 10 --device cpu
+
+# Test Qwen3-VL on CPU with 3 samples
+python test_inference.py --model Qwen/Qwen3-VL-8B-Instruct --device cpu --samples 3
 
 # Test with custom test file
 python test_inference.py --test-json data/traffic_buddy_train+public_test/public_test/public_test.json
 ```
 
-**Output**: Shows the predicted answer for one example question with detailed logging.
+**Output**: Shows the predicted answer for each sample with detailed logging, accuracy (if ground truth available), and success/failure summary.
 
 ### Test Training (Small Subset)
 
@@ -488,9 +497,19 @@ Check `output/submission.csv` for predictions.
 ### Inference Issues
 
 **CUDA out of memory:**
-- Try running on CPU: `python run_multi_model.py --device cpu`
-- Use a smaller model
-- Reduce batch size in config.py
+- **For testing**: Try running on CPU: `python test_inference.py --device cpu --samples 3`
+- **For full inference**: Try running on CPU: `python run_multi_model.py --device cpu`
+- Use a smaller model (try R-4B instead of InternVL3-8B)
+- Close other programs using GPU memory
+- Restart your Python kernel/terminal to clear GPU memory
+- Check GPU memory usage:
+  ```bash
+  nvidia-smi
+  ```
+- For Qwen3-VL-8B, CPU inference is recommended:
+  ```bash
+  python test_inference.py --model Qwen/Qwen3-VL-8B-Instruct --device cpu --samples 3
+  ```
 
 **Missing training data:**
 - Ensure `data/traffic_buddy_train+public_test/train/` exists

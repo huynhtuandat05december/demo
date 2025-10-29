@@ -66,6 +66,7 @@ class MultiModelInferencePipeline:
     def parse_answer(self, response: str) -> str:
         """
         Parse the answer from model response.
+        Handles responses in multiple languages including Chinese.
 
         Args:
             response: Raw model output
@@ -73,27 +74,39 @@ class MultiModelInferencePipeline:
         Returns:
             Parsed answer (A, B, C, or D)
         """
+        # Clean response - remove extra whitespace
+        response_clean = response.strip()
+
         # Try to find answer pattern like "A", "B.", "Answer: C", etc.
         patterns = [
-            r'\b([ABCD])\b',  # Single letter
-            r'(?:đáp án|answer|chọn)[\s:]*([ABCD])',  # "đáp án A" or "answer: B"
+            r'^([ABCD])$',  # Exact single letter (most preferred)
             r'^([ABCD])[.\s]',  # "A. " at start
+            r'\b([ABCD])\b',  # Single letter with word boundary
+            r'(?:đáp án|answer|chọn|答案|选择)[\s:：]*([ABCD])',  # Various "answer" keywords (including Chinese)
+            r'([ABCD])[\s]*[是为]',  # Chinese pattern like "A是" or "B为"
         ]
 
         for pattern in patterns:
-            matches = re.findall(pattern, response, re.IGNORECASE)
+            matches = re.findall(pattern, response_clean, re.IGNORECASE | re.MULTILINE)
             if matches:
                 answer = matches[0].upper()
                 if answer in config.VALID_ANSWERS:
                     return answer
 
-        # If no clear answer found, try to extract the first valid letter
-        for char in response.upper():
+        # Try looking at just the first few characters for a letter
+        for i, char in enumerate(response_clean[:10].upper()):
+            if char in config.VALID_ANSWERS:
+                # Check if it's not part of a longer word
+                if i == 0 or not response_clean[i-1].isalpha():
+                    return char
+
+        # If no clear answer found, try to extract ANY valid letter from the entire response
+        for char in response_clean.upper():
             if char in config.VALID_ANSWERS:
                 return char
 
         # Default to A if no answer found
-        print(f"Warning: Could not parse answer from response: {response[:100]}")
+        print(f"Warning: Could not parse answer from response: {response_clean[:200]}")
         return "A"
 
     def run_inference(self, question_data: Dict, verbose: bool = False) -> str:

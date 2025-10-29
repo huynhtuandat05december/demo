@@ -3,12 +3,18 @@
 Test inference script for a single or multiple examples.
 
 This script tests the inference pipeline on one or more examples to verify everything works.
+Supports multiple models: R-4B, InternVL3-8B, Qwen3-VL-8B-Instruct
 
 Usage:
     python test_inference.py
     python test_inference.py --model YannQi/R-4B
+    python test_inference.py --model OpenGVLab/InternVL3-8B
+    python test_inference.py --model Qwen/Qwen3-VL-8B-Instruct
     python test_inference.py --device cpu
     python test_inference.py --samples 5  # Test on 5 samples
+
+Note: For CUDA out of memory errors, try:
+    python test_inference.py --device cpu --samples 3
 """
 
 import argparse
@@ -21,7 +27,8 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src import config
-from src.inference import R4BInferencePipeline
+from src.inference_multi_model import MultiModelInferencePipeline
+import torch
 
 
 def generate_test_output_filename(model_name: str) -> Path:
@@ -103,13 +110,38 @@ def test_single_example():
             print(f"  ... and {len(missing_videos) - 5} more")
         sys.exit(1)
 
+    # Clear CUDA cache before loading model to free up memory
+    if args.device == "cuda" and torch.cuda.is_available():
+        print("\n🧹 Clearing CUDA cache...")
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        # Print available GPU memory
+        free_mem = torch.cuda.mem_get_info()[0] / 1024**3  # Convert to GB
+        total_mem = torch.cuda.mem_get_info()[1] / 1024**3
+        print(f"   Available GPU memory: {free_mem:.2f} GB / {total_mem:.2f} GB")
+
     # Initialize pipeline
     print("\n🔄 Initializing inference pipeline...")
     try:
-        pipeline = R4BInferencePipeline(
+        pipeline = MultiModelInferencePipeline(
             model_name=args.model,
             device=args.device,
         )
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            print(f"\n❌ CUDA Out of Memory Error!")
+            print(f"\n💡 Suggestions:")
+            print(f"   1. Try running on CPU instead: --device cpu")
+            print(f"   2. Close other programs using GPU")
+            print(f"   3. Try a smaller model")
+            print(f"   4. Restart your Python kernel to clear memory")
+            if torch.cuda.is_available():
+                print(f"\n📊 GPU Memory Info:")
+                for i in range(torch.cuda.device_count()):
+                    allocated = torch.cuda.memory_allocated(i) / 1024**3
+                    reserved = torch.cuda.memory_reserved(i) / 1024**3
+                    print(f"   GPU {i}: {allocated:.2f} GB allocated, {reserved:.2f} GB reserved")
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ Error initializing pipeline: {e}")
         import traceback
@@ -130,7 +162,7 @@ def test_single_example():
         print(f"  Video: {example['video_path']}")
 
         try:
-            answer = pipeline.run_inference(example)
+            answer = pipeline.run_inference(example, verbose=False)
             results.append({
                 "id": example["id"],
                 "question": example["question"],
@@ -166,6 +198,20 @@ def test_single_example():
             })
             import traceback
             traceback.print_exc()
+
+        # Clear CUDA cache after each inference to prevent memory buildup
+        if args.device == "cuda" and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    # Clear video cache
+    try:
+        pipeline.video_processor.clear_cache()
+    except:
+        pass
+
+    # Final CUDA cleanup
+    if args.device == "cuda" and torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     # Summary
     print("\n" + "=" * 60)
