@@ -86,20 +86,20 @@ def test_inference():
     parser.add_argument(
         "--min-frames",
         type=int,
-        default=8,
-        help="Minimum frames to extract (default: 8)"
+        default=4,
+        help="Minimum frames to extract (default: 4)"
     )
     parser.add_argument(
         "--max-frames",
         type=int,
-        default=32,
-        help="Maximum frames to extract (default: 32)"
+        default=8,
+        help="Maximum frames to extract (default: 8)"
     )
     parser.add_argument(
         "--max-num",
         type=int,
-        default=12,
-        help="Max number of tiles per frame (default: 12)"
+        default=4,
+        help="Max number of tiles per frame (default: 4)"
     )
     parser.add_argument(
         "--test-json",

@@ -172,9 +172,9 @@ class InternVL35_4BInference:
         self,
         model_name: str = "OpenGVLab/InternVL3_5-4B",
         device: str = "cuda",
-        min_frames: int = 8,
-        max_frames: int = 32,
-        max_num: int = 12,
+        min_frames: int = 4,
+        max_frames: int = 8,
+        max_num: int = 4,
         use_support_frames: bool = True,
         context_window: float = 0.5,
         simple_prompts: bool = False,
@@ -639,9 +639,9 @@ def main():
     pipeline = InternVL35_4BInference(
         model_name="OpenGVLab/InternVL3_5-4B",
         device=config.DEVICE,
-        min_frames=8,
-        max_frames=32,
-        max_num=12,
+        min_frames=4,
+        max_frames=8,
+        max_num=4,
         use_support_frames=config.USE_SUPPORT_FRAMES,
         use_flash_attn=True,  # Enable flash attention for memory efficiency
         load_in_8bit=False,  # Set to True for GPUs with <12GB VRAM

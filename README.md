@@ -694,3 +694,7 @@ pip install -e .
   ]
 }
 ```
+
+```
+uv add flash-attn --no-build-isolation-package flash-attn
+```
