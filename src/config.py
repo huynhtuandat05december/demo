@@ -54,3 +54,35 @@ Your answer:"""
 
 # Answer parsing
 VALID_ANSWERS = ["A", "B", "C", "D"]
+
+# ============================================================================
+# Traffic Inference Configuration (InternVL3 Multi-Frame)
+# ============================================================================
+# Configuration for the enhanced traffic video inference pipeline using
+# InternVL3-8B with multi-frame processing and traffic-optimized prompts
+
+# Enable/disable traffic inference features
+TRAFFIC_INFERENCE_ENABLED = True
+
+# InternVL3-specific configuration
+TRAFFIC_MODEL_NAME = "OpenGVLab/InternVL3-8B"
+TRAFFIC_MAX_NUM = 24  # InternVL max patches per frame (higher = more detail, more memory)
+TRAFFIC_PRECISION = "float32"  # Use float32 for highest accuracy
+
+# Frame extraction configuration
+TRAFFIC_MIN_FRAMES = 6  # Minimum frames for short videos (5-7 seconds)
+TRAFFIC_MAX_FRAMES = 12  # Maximum frames for long videos (13-15 seconds)
+TRAFFIC_USE_SUPPORT_FRAMES = True  # Use support_frames timestamps when available
+TRAFFIC_CONTEXT_WINDOW = 0.5  # Seconds of context around support frames
+
+# Prompt configuration
+TRAFFIC_SIMPLE_PROMPTS = False  # If True, use shorter/simpler prompt templates
+TRAFFIC_AUTO_DETECT_LANGUAGE = True  # Auto-detect Vietnamese vs English
+
+# Performance configuration
+TRAFFIC_CPU_WARNING = True  # Warn user about CPU memory/speed limitations
+TRAFFIC_CLEAR_CUDA_CACHE = True  # Clear CUDA cache after each inference
+
+# Output configuration
+TRAFFIC_OUTPUT_FILE = OUTPUT_DIR / f"traffic_inference_{TIMESTAMP}.csv"
+TRAFFIC_VERBOSE = False  # Print detailed information during inference
