@@ -77,7 +77,12 @@ class R4BAdapter(BaseModelAdapter):
             padding=True,
         )
 
-        return {k: v.to(self.device) for k, v in inputs.items()}
+        # Convert to model's dtype
+        model_dtype = torch.float16 if self.device == "cuda" else torch.float32
+        return {
+            k: v.to(self.device).to(model_dtype) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
+            for k, v in inputs.items()
+        }
 
     def generate(self, inputs: Dict[str, Any], **kwargs) -> str:
         max_new_tokens = kwargs.get("max_new_tokens", 512)
@@ -209,7 +214,12 @@ class Qwen3VLAdapter(BaseModelAdapter):
             padding=True,
         )
 
-        return {k: v.to(self.device) for k, v in inputs.items()}
+        # Convert to model's dtype
+        model_dtype = torch.float16 if self.device == "cuda" else torch.float32
+        return {
+            k: v.to(self.device).to(model_dtype) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
+            for k, v in inputs.items()
+        }
 
     def generate(self, inputs: Dict[str, Any], **kwargs) -> str:
         max_new_tokens = kwargs.get("max_new_tokens", 512)

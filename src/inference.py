@@ -159,8 +159,12 @@ class R4BInferencePipeline:
             padding=True,
         )
 
-        # Move inputs to device
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        # Move inputs to device and convert to model's dtype
+        model_dtype = torch.float16 if self.device == "cuda" else torch.float32
+        inputs = {
+            k: v.to(self.device).to(model_dtype) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
+            for k, v in inputs.items()
+        }
 
         # Generate response
         with torch.no_grad():
