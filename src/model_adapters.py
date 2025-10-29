@@ -102,11 +102,21 @@ class R4BAdapter(BaseModelAdapter):
         if do_sample:
             gen_kwargs["temperature"] = temperature
 
+        # Get input length to extract only generated tokens
+        input_ids = inputs.get("input_ids")
+        input_length = input_ids.shape[1] if input_ids is not None else 0
+
         with torch.no_grad():
             outputs = self.model.generate(**inputs, **gen_kwargs)
 
+        # Decode only the generated tokens (skip input)
+        if input_length > 0:
+            generated_ids = outputs[:, input_length:]
+        else:
+            generated_ids = outputs
+
         response = self.processor.batch_decode(
-            outputs,
+            generated_ids,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )[0]
@@ -235,14 +245,24 @@ class Qwen3VLAdapter(BaseModelAdapter):
         if do_sample:
             generation_kwargs["temperature"] = temperature
 
+        # Get input length to extract only generated tokens
+        input_ids = inputs.get("input_ids")
+        input_length = input_ids.shape[1] if input_ids is not None else 0
+
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
                 **generation_kwargs,
             )
 
+        # Decode only the generated tokens (skip input)
+        if input_length > 0:
+            generated_ids = outputs[:, input_length:]
+        else:
+            generated_ids = outputs
+
         response = self.processor.batch_decode(
-            outputs,
+            generated_ids,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )[0]

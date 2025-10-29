@@ -140,6 +140,11 @@ class R4BInferencePipeline:
             choices=question_data["choices"],
         )
 
+        # Debug: Print the prompt
+        print(f"\n📝 DEBUG - Prompt sent to model:")
+        print(f"{prompt}")
+        print(f"-" * 60)
+
         # Prepare inputs
         messages = [
             {
@@ -182,17 +187,32 @@ class R4BInferencePipeline:
             if config.DO_SAMPLE:
                 gen_kwargs["temperature"] = config.TEMPERATURE
 
+            # Get input length to extract only generated tokens
+            input_ids = inputs.get("input_ids")
+            input_length = input_ids.shape[1] if input_ids is not None else 0
+
             outputs = self.model.generate(**inputs, **gen_kwargs)
 
-        # Decode response
+        # Decode only the generated tokens (skip input)
+        if input_length > 0:
+            generated_ids = outputs[:, input_length:]
+        else:
+            generated_ids = outputs
+
         response = self.processor.batch_decode(
-            outputs,
+            generated_ids,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )[0]
 
+        # Debug: Print raw model response
+        print(f"\n🔍 DEBUG - Raw model response (generated only):")
+        print(f"'{response}'")
+        print(f"Response length: {len(response)} characters")
+
         # Parse answer
         answer = self.parse_answer(response)
+        print(f"🎯 Parsed answer: {answer}")
 
         # Clear cache after inference to prevent memory buildup
         if self.device == "cuda" and torch.cuda.is_available():
