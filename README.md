@@ -36,12 +36,30 @@ road_buddy/
 
 ## Installation
 
-### Basic Dependencies
+### Option 1: Using uv (Recommended)
+
+```bash
+# Install basic dependencies
+uv sync
+
+# For training with LoRA
+uv sync --extra train
+
+# For InternVL3-8B model
+uv sync --extra internvl
+
+# Install all optional dependencies
+uv sync --extra all
+```
+
+### Option 2: Using pip
+
+#### Basic Dependencies
 ```bash
 pip install torch transformers pillow pandas tqdm opencv-python
 ```
 
-### For Training (Additional Dependencies)
+#### For Training (Additional Dependencies)
 ```bash
 # For LoRA-based fine-tuning (recommended)
 pip install peft
@@ -50,11 +68,20 @@ pip install peft
 pip install accelerate bitsandbytes
 ```
 
+#### Model-Specific Dependencies
+```bash
+# For InternVL3-8B model
+pip install einops timm
+
+# For Qwen models (if using Qwen3-VL-8B-Instruct)
+# All dependencies should be covered by basic installation
+```
+
 ## Supported Models
 
-- **YannQi/R-4B** (default)
-- **OpenGVLab/InternVL3-8B**
-- **Qwen/Qwen3-VL-8B-Instruct**
+- **YannQi/R-4B** (default) - No additional dependencies
+- **OpenGVLab/InternVL3-8B** - Requires: `pip install einops timm`
+- **Qwen/Qwen3-VL-8B-Instruct** - No additional dependencies
 
 ## Quick Testing
 
@@ -478,8 +505,22 @@ Check `output/submission.csv` for predictions.
 - Verify HuggingFace model name is correct
 - Ensure sufficient disk space for model weights
 
+**Missing model-specific dependencies (einops, timm):**
+- For InternVL3-8B model:
+```bash
+# Using uv
+uv sync --extra internvl
+
+# Using pip
+pip install einops timm
+```
+
 **peft library not found:**
 ```bash
+# Using uv
+uv sync --extra train
+
+# Using pip
 pip install peft
 ```
 
