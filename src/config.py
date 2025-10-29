@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data" / "traffic_buddy_train+public_test"
+DATA_DIR = PROJECT_ROOT.parent / "RoadBuddy" / "traffic_buddy_train+public_test"
 PUBLIC_TEST_DIR = DATA_DIR / "public_test"
 PUBLIC_TEST_JSON = PUBLIC_TEST_DIR / "public_test.json"
 VIDEOS_DIR = PUBLIC_TEST_DIR / "videos"

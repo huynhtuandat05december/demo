@@ -24,12 +24,42 @@ Usage:
 import argparse
 from pathlib import Path
 import sys
+from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src import config
 from src.inference_multi_model import MultiModelInferencePipeline
+
+
+def generate_output_filename(model_name: str, output_dir: Path) -> Path:
+    """
+    Generate output filename based on model name and current date/time.
+
+    Args:
+        model_name: Name of the model (e.g., "YannQi/R-4B")
+        output_dir: Directory to save the output file
+
+    Returns:
+        Path to output file with format: submission_{model}_{date}_{time}.csv
+    """
+    # Extract model name (handle HuggingFace format like "YannQi/R-4B")
+    if "/" in model_name:
+        model_short = model_name.split("/")[-1]  # "R-4B"
+    else:
+        model_short = model_name
+
+    # Remove special characters and replace with underscore
+    model_short = model_short.replace("-", "_").replace(".", "_")
+
+    # Get current date and time
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Create filename
+    filename = f"submission_{model_short}_{timestamp}.csv"
+
+    return output_dir / filename
 
 
 SUPPORTED_MODELS = [
@@ -70,8 +100,14 @@ def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=config.SUBMISSION_FILE,
-        help="Path to save output CSV",
+        default=None,
+        help="Path to save output CSV (default: auto-generate based on model and date)",
+    )
+
+    parser.add_argument(
+        "--no-timestamp",
+        action="store_true",
+        help="Use default filename without timestamp",
     )
 
     parser.add_argument(
@@ -105,6 +141,14 @@ def main():
         response = input("Continue anyway? (y/n): ")
         if response.lower() != 'y':
             sys.exit(1)
+
+    # Generate output filename if not specified
+    if args.output is None:
+        if args.no_timestamp:
+            args.output = config.SUBMISSION_FILE
+        else:
+            args.output = generate_output_filename(args.model, config.OUTPUT_DIR)
+            print(f"\n📝 Auto-generated output file: {args.output.name}")
 
     # Print configuration
     print(f"\n{'='*60}")

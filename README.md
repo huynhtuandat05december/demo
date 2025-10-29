@@ -122,6 +122,7 @@ Train a model on the traffic video QA dataset.
 
 ```bash
 # Basic training with default settings
+# Checkpoints will be saved to: checkpoints/{model}_{date}/
 python train.py
 
 # Training with custom hyperparameters
@@ -132,7 +133,12 @@ python train.py --use-lora --lora-r 8 --lora-alpha 16
 
 # Debug mode (small dataset for testing)
 python train.py --debug
+
+# Custom output directory
+python train.py --output-dir my_custom_checkpoints
 ```
+
+**Note**: By default, checkpoints are saved to `checkpoints/{model_name}_{date}/`. For example, training R-4B on 2025-01-15 saves to `checkpoints/R_4B_20250115/`.
 
 ### Training Options
 
@@ -243,7 +249,9 @@ python run.py
 This will:
 - Use the model specified in `src/config.py` (default: YannQi/R-4B)
 - Process videos from `data/traffic_buddy_train+public_test/public_test/`
-- Save results to `output/submission.csv`
+- Save results to `output/submission_{model}_{timestamp}.csv`
+
+**Note**: Output files are automatically named with model and timestamp, e.g., `submission_R_4B_20250115_143022.csv`
 
 ### Option 2: Multi-Model Runner (Command-Line Arguments)
 
@@ -252,24 +260,33 @@ Use `run_multi_model.py` for more flexibility:
 #### Basic Usage
 ```bash
 # Use default model from config
+# Output: submission_{model}_{timestamp}.csv (auto-generated)
 python run_multi_model.py
 
 # List all supported models
 python run_multi_model.py --list-models
+
+# Use default filename without timestamp
+python run_multi_model.py --no-timestamp
+# Output: submission.csv
 ```
 
 #### Specify a Model
 ```bash
 # Use R-4B model
+# Output: submission_R_4B_20250115_143022.csv
 python run_multi_model.py --model YannQi/R-4B
 
 # Use InternVL3-8B model
+# Output: submission_InternVL3_8B_20250115_143022.csv
 python run_multi_model.py --model OpenGVLab/InternVL3-8B
 
 # Use Qwen3-VL-8B model
+# Output: submission_Qwen3_VL_8B_Instruct_20250115_143022.csv
 python run_multi_model.py --model Qwen/Qwen3-VL-8B-Instruct
 
 # Use your fine-tuned model
+# Output: submission_best_model_hf_20250115_143022.csv
 python run_multi_model.py --model checkpoints/best_model_hf
 ```
 
@@ -332,6 +349,22 @@ DO_SAMPLE = False           # Use greedy decoding
 ```
 
 ## Output Format
+
+### File Naming
+
+Output files are automatically named with the model and timestamp for easy tracking:
+
+**Inference outputs** (in `output/` directory):
+- Format: `submission_{model}_{timestamp}.csv`
+- Example: `submission_R_4B_20250115_143022.csv`
+- Disable timestamp: Use `--no-timestamp` flag → `submission.csv`
+
+**Training checkpoints** (in `checkpoints/` directory):
+- Format: `checkpoints/{model}_{date}/`
+- Example: `checkpoints/R_4B_20250115/best_model_hf/`
+- Disable timestamp: Use `--no-timestamp` flag → `checkpoints/`
+
+### CSV Format
 
 The inference script generates a CSV file with predictions:
 

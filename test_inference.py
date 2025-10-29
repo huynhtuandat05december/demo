@@ -14,12 +14,33 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src import config
 from src.inference import R4BInferencePipeline
+
+
+def generate_test_output_filename(model_name: str) -> Path:
+    """Generate test output filename based on model name and timestamp."""
+    # Extract model name
+    if "/" in model_name:
+        model_short = model_name.split("/")[-1]
+    else:
+        model_short = model_name
+
+    # Remove special characters
+    model_short = model_short.replace("-", "_").replace(".", "_")
+
+    # Get current timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Create filename
+    filename = f"test_result_{model_short}_{timestamp}.txt"
+
+    return Path(__file__).parent / "output" / filename
 
 
 def test_single_example():

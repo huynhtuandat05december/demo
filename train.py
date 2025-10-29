@@ -29,12 +29,42 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
+from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src import train_config
 from src.train import Trainer
+
+
+def generate_checkpoint_dir(model_name: str, base_dir: Path) -> Path:
+    """
+    Generate checkpoint directory name based on model and timestamp.
+
+    Args:
+        model_name: Name of the model
+        base_dir: Base directory for checkpoints
+
+    Returns:
+        Path to checkpoint directory
+    """
+    # Extract model name
+    if "/" in model_name:
+        model_short = model_name.split("/")[-1]
+    else:
+        model_short = model_name
+
+    # Remove special characters
+    model_short = model_short.replace("-", "_").replace(".", "_")
+
+    # Get current date (without time for training runs)
+    date_str = datetime.now().strftime("%Y%m%d")
+
+    # Create directory name
+    dir_name = f"{model_short}_{date_str}"
+
+    return base_dir / dir_name
 
 
 def parse_args():
@@ -141,8 +171,13 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=train_config.OUTPUT_DIR,
-        help="Directory to save checkpoints",
+        default=None,
+        help="Directory to save checkpoints (default: auto-generate based on model and date)",
+    )
+    parser.add_argument(
+        "--no-timestamp",
+        action="store_true",
+        help="Use default checkpoint directory without timestamp",
     )
     parser.add_argument(
         "--resume",
@@ -233,7 +268,16 @@ def update_config_from_args(args):
     train_config.USE_SUPPORT_FRAMES = args.use_support_frames
 
     # Output
-    train_config.OUTPUT_DIR = args.output_dir
+    if args.output_dir is None:
+        if args.no_timestamp:
+            train_config.OUTPUT_DIR = Path(__file__).parent / "checkpoints"
+        else:
+            # Auto-generate checkpoint directory with model name and date
+            base_checkpoints_dir = Path(__file__).parent / "checkpoints"
+            train_config.OUTPUT_DIR = generate_checkpoint_dir(args.model, base_checkpoints_dir)
+    else:
+        train_config.OUTPUT_DIR = args.output_dir
+
     train_config.RESUME_FROM_CHECKPOINT = args.resume
     train_config.SAVE_EVERY_N_EPOCHS = args.save_every_n_epochs
 
