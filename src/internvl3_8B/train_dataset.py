@@ -18,7 +18,12 @@ except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from src import prompts
 
-from .inference import load_video, build_transform, dynamic_preprocess, IMAGENET_MEAN, IMAGENET_STD
+# Handle inference module imports (relative vs absolute)
+try:
+    from .inference import load_video, build_transform
+except ImportError:
+    # When running directly from internvl3_8B directory
+    from inference import load_video, build_transform
 
 
 class TrafficVideoDataset(Dataset):

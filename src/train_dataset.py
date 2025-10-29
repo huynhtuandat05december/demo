@@ -20,9 +20,9 @@ except ModuleNotFoundError:
 
 # Import from internvl3_8B module
 try:
-    from .internvl3_8B.inference import load_video, build_transform, dynamic_preprocess, IMAGENET_MEAN, IMAGENET_STD
+    from .internvl3_8B.inference import load_video, build_transform
 except ImportError:
-    from src.internvl3_8B.inference import load_video, build_transform, dynamic_preprocess, IMAGENET_MEAN, IMAGENET_STD
+    from src.internvl3_8B.inference import load_video, build_transform
 
 
 class TrafficVideoDataset(Dataset):
