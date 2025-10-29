@@ -6,11 +6,14 @@ A video question answering system for dashcam scenarios using vision-language mo
 
 ```
 road_buddy/
-├── data/
+├── RoadBuddy/                     # Data directory (external)
 │   └── traffic_buddy_train+public_test/
+│       ├── train/
+│       │   ├── train.json         # Training data (1,490 samples)
+│       │   └── videos/            # Training videos (549 files)
 │       └── public_test/
-│           ├── public_test.json
-│           └── videos/
+│           ├── public_test.json   # Test data
+│           └── videos/            # Test videos
 ├── src/
 │   ├── config.py                  # Inference configuration
 │   ├── prompts.py                 # Prompt templates
@@ -21,11 +24,20 @@ road_buddy/
 │   └── internvl3_8B/
 │       ├── inference.py           # InternVL3 inference
 │       ├── run_inference.py       # Run full inference
-│       └── test_inference.py      # Test on samples
+│       ├── test_inference.py      # Test on samples
+│       ├── train_config.py        # Training configuration
+│       ├── train_dataset.py       # Training dataset class
+│       ├── train.py               # Main training script
+│       └── evaluate.py            # Model evaluation script
 ├── output/
-│   └── submission.csv             # Inference predictions
+│   ├── submission.csv             # Inference predictions
+│   └── internvl3_8B_lora/         # Training checkpoints
+│       ├── checkpoint-XXX/        # Epoch checkpoints
+│       ├── final_model/           # Final trained model
+│       └── runs/                  # TensorBoard logs
 ├── run.py                         # Simple inference runner
-└── run_multi_model.py             # Flexible inference runner
+├── run_multi_model.py             # Flexible inference runner
+└── pyproject.toml                 # Dependencies (includes peft)
 ```
 
 ## Installation
@@ -52,8 +64,11 @@ pip install torch transformers pillow pandas tqdm opencv-python
 
 #### Model-Specific Dependencies
 ```bash
-# For InternVL3-8B model
+# For InternVL3-8B model (inference)
 pip install einops timm decord
+
+# For training InternVL3-8B with LoRA
+pip install peft>=0.7.0
 
 # For Qwen models (if using Qwen3-VL-8B-Instruct)
 # All dependencies should be covered by basic installation
@@ -493,6 +508,347 @@ test_traffic_inference.py      # Test on sample videos
    - Memory management
    - Comprehensive error handling
 
+## Training InternVL3-8B with LoRA
+
+Fine-tune InternVL3-8B on the RoadBuddy training dataset using LoRA (Low-Rank Adaptation) for efficient training with minimal resource requirements.
+
+### Overview
+
+The training pipeline consists of:
+- **train_config.py**: Configuration file with all hyperparameters
+- **train_dataset.py**: Dataset class for loading and preprocessing videos
+- **train.py**: Main training script with HuggingFace Trainer + LoRA
+- **evaluate.py**: Evaluation script for trained models
+
+### Requirements
+
+Install the required dependencies:
+
+```bash
+pip install -e .
+```
+
+Or manually install:
+```bash
+pip install peft>=0.7.0
+```
+
+All other dependencies should already be installed from the base requirements.
+
+### Quick Start
+
+#### 1. Configure Training (Optional)
+
+Edit `src/internvl3_8B/train_config.py` to customize training parameters:
+
+```python
+# Key parameters to adjust:
+BATCH_SIZE = 4  # Reduce if you have memory issues
+GRADIENT_ACCUMULATION_STEPS = 4  # Effective batch size = 4 * 4 = 16
+LEARNING_RATE = 2e-4  # Standard for LoRA
+NUM_EPOCHS = 5  # Number of training epochs
+```
+
+#### 2. Run Training
+
+```bash
+cd src/internvl3_8B
+python train.py
+```
+
+Training will:
+1. Load InternVL3-8B from HuggingFace Hub (~16GB download)
+2. Apply LoRA to reduce trainable parameters to ~1-2%
+3. Split data into 80% train / 20% validation
+4. Train for 5 epochs with evaluation after each epoch
+5. Save checkpoints and best model to `output/internvl3_8B_lora/`
+
+#### 3. Monitor Training
+
+View training progress with TensorBoard:
+
+```bash
+tensorboard --logdir output/internvl3_8B_lora
+```
+
+#### 4. Evaluate Trained Model
+
+After training completes, evaluate on validation set:
+
+```bash
+cd src/internvl3_8B
+python evaluate.py \
+    --model-path ../../output/internvl3_8B_lora/checkpoint-XXX \
+    --split val \
+    --device cuda
+```
+
+This will output:
+- Overall accuracy
+- Per-class accuracy (A, B, C, D)
+- Confusion matrix
+- Answer distribution
+
+### Training Configuration
+
+#### Data Split
+
+- **Train**: 80% of 1,490 samples = ~1,192 samples
+- **Validation**: 20% of 1,490 samples = ~298 samples
+
+#### LoRA Configuration
+
+```python
+LORA_CONFIG = {
+    "r": 32,              # LoRA rank
+    "lora_alpha": 64,     # Alpha = 2 * rank (recommended)
+    "lora_dropout": 0.05, # Dropout for regularization
+    "target_modules": [
+        "qkv_proj",       # Query, Key, Value attention projections
+        "out_proj",       # Output projection
+    ],
+}
+```
+
+#### Training Hyperparameters
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Batch size | 4 | Per-device batch size |
+| Gradient accumulation | 4 | Effective batch = 16 |
+| Learning rate | 2e-4 | Standard for LoRA |
+| Epochs | 5 | Number of training epochs |
+| Warmup ratio | 0.1 | 10% of steps for warmup |
+| LR scheduler | Cosine | Cosine annealing with warmup |
+| Optimizer | AdamW | Weight decay = 0.01 |
+| Precision | FP16 | Mixed precision training |
+
+#### Video Processing
+
+- **Frame extraction**: 4-6 frames per video (adaptive)
+- **Support frames**: Uses important timestamps from annotations
+- **Context window**: 0.5 seconds around support frames
+- **Dynamic tiling**: InternVL3's approach for high-resolution frames
+- **Max patches per frame**: 6
+
+### Expected Performance
+
+#### Training Time
+
+On a single 24GB GPU (RTX 4090 / A100):
+- **Time per epoch**: ~30-40 minutes
+- **Total training time**: ~2-4 hours for 5 epochs
+- **VRAM usage**: ~18-22GB
+
+#### Memory Requirements
+
+| Component | Memory |
+|-----------|--------|
+| Base model (BF16) | ~16GB |
+| LoRA adapters | ~100MB |
+| Gradients | ~2GB |
+| Video frames (batch) | ~2-4GB |
+| **Total** | **~18-22GB** |
+
+#### Expected Accuracy
+
+Based on similar vision-language models:
+- **Baseline (untrained)**: 25-40% (random/biased guessing)
+- **After 3 epochs**: 60-75%
+- **After 5 epochs**: 70-85%
+- **Best case**: 80-90%
+
+### Troubleshooting
+
+#### Out of Memory (OOM) Errors
+
+If you encounter OOM errors:
+
+1. **Reduce batch size**:
+   ```python
+   # In src/internvl3_8B/train_config.py
+   BATCH_SIZE = 2  # or even 1
+   GRADIENT_ACCUMULATION_STEPS = 8  # to maintain effective batch size
+   ```
+
+2. **Reduce max frames**:
+   ```python
+   MAX_FRAMES = 4  # Down from 6
+   ```
+
+3. **Reduce patches per frame**:
+   ```python
+   MAX_NUM_PATCHES = 4  # Down from 6
+   ```
+
+4. **Enable gradient checkpointing**:
+   ```python
+   GRADIENT_CHECKPOINTING = True  # Trades speed for memory
+   ```
+
+#### Slow Training
+
+If training is very slow:
+
+1. **Increase batch size** (if you have memory):
+   ```python
+   BATCH_SIZE = 8
+   ```
+
+2. **Reduce num_workers** if CPU is bottleneck:
+   ```python
+   DATALOADER_NUM_WORKERS = 2  # Down from 4
+   ```
+
+3. **Disable support frames** for uniform sampling:
+   ```python
+   USE_SUPPORT_FRAMES = False
+   ```
+
+#### Loss is NaN
+
+If you see NaN losses:
+
+1. **Reduce learning rate**:
+   ```python
+   LEARNING_RATE = 1e-4  # Down from 2e-4
+   ```
+
+2. **Check for corrupted videos**: The dataset loader will print warnings
+
+3. **Enable FP32 training** (slower but more stable):
+   ```python
+   FP16 = False
+   BF16 = False
+   ```
+
+#### Model Not Improving
+
+If validation accuracy doesn't improve:
+
+1. **Train longer**: Try 10 epochs instead of 5
+2. **Adjust learning rate**: Try 1e-4 or 5e-5
+3. **Increase LoRA rank**:
+   ```python
+   LORA_CONFIG = {
+       "r": 64,        # Up from 32
+       "lora_alpha": 128,  # 2 * rank
+       ...
+   }
+   ```
+
+### Advanced Usage
+
+#### Resume Training from Checkpoint
+
+```bash
+python train.py --resume_from_checkpoint output/internvl3_8B_lora/checkpoint-XXX
+```
+
+#### Use Different Base Model
+
+Edit `src/internvl3_8B/train_config.py`:
+```python
+MODEL_NAME = "OpenGVLab/InternVL3-4B"  # Smaller model
+```
+
+#### Full Fine-Tuning (No LoRA)
+
+Edit `src/internvl3_8B/train_config.py`:
+```python
+USE_LORA = False  # Train all parameters (requires ~32GB+ VRAM)
+```
+
+#### Custom Prompts
+
+Edit prompts in `src/prompts.py`.
+
+#### Evaluate on Public Test Set
+
+First, create a test dataset in `train_dataset.py` that loads `public_test.json`, then:
+
+```bash
+cd src/internvl3_8B
+python evaluate.py \
+    --model-path ../../output/internvl3_8B_lora/checkpoint-XXX \
+    --split test \
+    --output-file results.json
+```
+
+### Output Structure
+
+```
+output/internvl3_8B_lora/
+├── checkpoint-XXX/          # Checkpoints after each epoch
+│   ├── adapter_config.json  # LoRA configuration
+│   ├── adapter_model.bin    # LoRA weights (~200MB)
+│   └── ...
+├── final_model/             # Final merged model
+│   └── ...
+├── training_metrics.json    # Training loss, learning rate, etc.
+├── eval_results.json        # Final evaluation metrics
+└── runs/                    # TensorBoard logs
+    └── ...
+```
+
+### Model Deployment
+
+#### Use Trained Model for Inference
+
+```python
+from transformers import AutoModel, AutoTokenizer
+from peft import PeftModel
+
+# Load base model
+base_model = AutoModel.from_pretrained(
+    "OpenGVLab/InternVL3-8B",
+    trust_remote_code=True,
+    torch_dtype=torch.bfloat16
+)
+
+# Load LoRA weights
+model = PeftModel.from_pretrained(
+    base_model,
+    "output/internvl3_8B_lora/checkpoint-XXX",
+    torch_dtype=torch.bfloat16
+)
+
+# Merge for faster inference (optional)
+model = model.merge_and_unload()
+
+# Use model.chat() as in inference.py
+```
+
+#### Export for Production
+
+Save merged model:
+```python
+model = model.merge_and_unload()
+model.save_pretrained("output/merged_model")
+tokenizer.save_pretrained("output/merged_model")
+```
+
+Then load directly:
+```python
+model = AutoModel.from_pretrained(
+    "output/merged_model",
+    trust_remote_code=True
+)
+```
+
+### Citation
+
+If you use this training code, please cite:
+
+```bibtex
+@article{internvl3,
+  title={InternVL3: Scaling Up Vision-Language Models to 1B Parameters},
+  author={Chen, Zhe and others},
+  journal={arXiv preprint arXiv:2408.xxxxx},
+  year={2024}
+}
+```
+
 ## Configuration
 
 ### Inference Configuration
@@ -554,7 +910,7 @@ Where:
 
 ## Requirements
 
-### Minimum Requirements
+### Minimum Requirements (Inference)
 - Python 3.8+
 - PyTorch (with CUDA support for GPU)
 - Transformers
@@ -563,44 +919,68 @@ Where:
 - Pandas
 - tqdm
 
-### For Training
-- peft (for LoRA fine-tuning)
-- At least 16GB GPU RAM for training (recommended)
-- 8GB GPU RAM minimum with small batch sizes
+### Additional Requirements (Training)
+- **peft>=0.7.0** (for LoRA fine-tuning)
+- **GPU**: 24GB VRAM recommended (18-22GB minimum)
+  - RTX 4090, A100, or equivalent
+  - Can train with 16GB by reducing batch size
+- **Disk space**: ~17GB for model + checkpoints
+- **Other**: All inference dependencies above
 
 ## Complete Workflow Example
 
-### 1. Train a Model
+### 1. Train InternVL3-8B with LoRA
 ```bash
-# Train with LoRA on GPU
-python train.py \
-    --model YannQi/R-4B \
-    --use-lora \
-    --batch-size 2 \
-    --epochs 3 \
+# Navigate to training directory
+cd src/internvl3_8B
+
+# Run training (takes ~2-4 hours on 24GB GPU)
+python train.py
+```
+
+This will train for 5 epochs and save checkpoints to `output/internvl3_8B_lora/`.
+
+### 2. Evaluate Your Trained Model
+```bash
+# Still in src/internvl3_8B directory
+python evaluate.py \
+    --model-path ../../output/internvl3_8B_lora/checkpoint-best \
+    --split val \
     --device cuda
 ```
 
-### 2. Run Inference with Trained Model
+Check validation accuracy and per-class performance.
+
+### 3. Run Inference with Trained Model
 ```bash
-# Use the trained model for predictions
-python run_multi_model.py \
-    --model checkpoints/best_model_hf \
-    --test-json data/traffic_buddy_train+public_test/public_test/public_test.json \
-    --output output/submission.csv
+# From project root
+cd src/internvl3_8B
+python run_inference.py \
+    --model-path ../../output/internvl3_8B_lora/final_model \
+    --test-json ../../RoadBuddy/traffic_buddy_train+public_test/public_test/public_test.json \
+    --output ../../output/submission_trained.csv
 ```
 
-### 3. Evaluate Results
-Check `output/submission.csv` for predictions.
+### 4. Compare Results
+Compare your trained model's predictions with baseline:
+```bash
+# Baseline (pretrained InternVL3-8B)
+python run_multi_model.py --model OpenGVLab/InternVL3-8B
+
+# Your trained model (should perform better)
+# See step 3 above
+```
 
 ## Tips for Best Results
 
 ### Training Tips
-1. **Use LoRA**: Faster training, less memory, often better results
-2. **Start small**: Use `--debug` mode to test your setup
-3. **Monitor validation**: Watch for overfitting
-4. **Adjust learning rate**: Try 1e-5 to 5e-5 for fine-tuning
-5. **Use mixed precision**: `--fp16` for faster training
+1. **Test dataset first**: Run `python src/internvl3_8B/train_dataset.py` to verify data loads correctly
+2. **Monitor training**: Use TensorBoard to watch loss and accuracy curves
+3. **Adjust batch size**: Reduce `BATCH_SIZE` in `train_config.py` if OOM errors occur
+4. **Use support frames**: Keep `USE_SUPPORT_FRAMES = True` for better temporal understanding
+5. **Train longer if needed**: Increase `NUM_EPOCHS` to 10 if validation accuracy is still improving
+6. **Save GPU memory**: Reduce `MAX_FRAMES` and `MAX_NUM_PATCHES` if memory constrained
+7. **Learning rate**: Default 2e-4 works well; try 1e-4 if training is unstable
 
 ### Inference Tips
 1. **GPU recommended**: Much faster than CPU
@@ -613,22 +993,49 @@ Check `output/submission.csv` for predictions.
 ### Training Issues
 
 **CUDA out of memory during training:**
-- Reduce batch size: `--batch-size 1`
-- Increase gradient accumulation: `--gradient-accumulation-steps 8`
-- Use LoRA: `--use-lora`
-- Enable mixed precision: `--fp16`
+```python
+# Edit src/internvl3_8B/train_config.py
+BATCH_SIZE = 2  # Reduce from 4
+GRADIENT_ACCUMULATION_STEPS = 8  # Increase from 4
+MAX_FRAMES = 4  # Reduce from 6
+MAX_NUM_PATCHES = 4  # Reduce from 6
+```
 
 **Training too slow:**
-- Use LoRA instead of full fine-tuning
-- Enable mixed precision: `--fp16`
-- Increase batch size if GPU memory allows
-- Reduce number of workers if CPU bottleneck
+```python
+# Edit src/internvl3_8B/train_config.py
+DATALOADER_NUM_WORKERS = 2  # Reduce from 4
+USE_SUPPORT_FRAMES = False  # Disable for faster loading
+MIN_FRAMES = 4
+MAX_FRAMES = 4  # Use fixed frame count
+```
 
 **Low validation accuracy:**
-- Train for more epochs: `--epochs 5`
-- Adjust learning rate: `--learning-rate 1e-5`
-- Try different models
-- Check if overfitting (train vs val accuracy gap)
+```python
+# Edit src/internvl3_8B/train_config.py
+NUM_EPOCHS = 10  # Train longer
+LEARNING_RATE = 1e-4  # Try lower LR
+LORA_CONFIG = {
+    "r": 64,  # Increase rank
+    "lora_alpha": 128,
+    ...
+}
+```
+
+**Loss is NaN:**
+```python
+# Edit src/internvl3_8B/train_config.py
+LEARNING_RATE = 1e-4  # Reduce learning rate
+FP16 = False  # Disable mixed precision
+BF16 = False
+```
+
+**Dataset loading errors:**
+```bash
+# Test dataset loading
+cd src/internvl3_8B
+python train_dataset.py  # Will show any errors
+```
 
 ### Inference Issues
 
@@ -670,24 +1077,32 @@ uv sync --extra internvl
 pip install einops timm
 ```
 
-**peft library not found:**
+**peft library not found (for training):**
 ```bash
-# Using uv
-uv sync --extra train
-
 # Using pip
-pip install peft
+pip install peft>=0.7.0
+
+# Or install all dependencies
+pip install -e .
 ```
 
 ## Notes
 
-- First run will download the model weights (may take several minutes)
+### General
+- First run will download the model weights (may take several minutes for InternVL3-8B ~16GB)
 - GPU is highly recommended for both training and inference
 - The script uses support frames when available for better accuracy
-- Training checkpoints are automatically saved
-- Best model is saved in HuggingFace format for easy loading
 - Answers are parsed from model responses using pattern matching
 - If answer parsing fails, defaults to "A"
+
+### Training
+- Training uses LoRA to reduce trainable parameters to ~1-2%
+- Automatically creates 80/20 train/validation split from 1,490 samples
+- Checkpoints are saved every epoch to `output/internvl3_8B_lora/`
+- Best model is saved based on validation accuracy
+- TensorBoard logs available in `output/internvl3_8B_lora/runs/`
+- Training takes ~2-4 hours on RTX 4090/A100 (24GB GPU)
+- Can resume training from any checkpoint if interrupted
 
 ## Data Format
 

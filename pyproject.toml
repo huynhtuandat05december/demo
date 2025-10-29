@@ -16,5 +16,6 @@ dependencies = [
     "einops>=0.7.0",
     "timm>=0.9.0",
     "decord>=0.6.0",
-    "bitsandbytes>=0.48.1"
+    "bitsandbytes>=0.48.1",
+    "peft>=0.7.0"
 ]
