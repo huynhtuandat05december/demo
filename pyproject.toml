@@ -13,25 +13,6 @@ dependencies = [
     "pandas>=2.0.0",
     "tqdm>=4.65.0",
     "numpy>=1.24.0",
-]
-
-[project.optional-dependencies]
-# For training with LoRA
-train = [
-    "peft>=0.7.0",
-    "bitsandbytes>=0.41.0",
-]
-
-# For InternVL3-8B model
-internvl = [
-    "einops>=0.7.0",
-    "timm>=0.9.0",
-]
-
-# Install all optional dependencies
-all = [
-    "peft>=0.7.0",
-    "bitsandbytes>=0.41.0",
     "einops>=0.7.0",
     "timm>=0.9.0",
 ]
