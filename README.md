@@ -29,7 +29,9 @@ road_buddy/
 │   └── submission.csv             # Inference predictions
 ├── train.py                       # Training runner
 ├── run.py                         # Simple inference runner
-└── run_multi_model.py             # Flexible inference runner
+├── run_multi_model.py             # Flexible inference runner
+├── test_inference.py              # Test inference on single example
+└── test_train.py                  # Test training on small subset
 ```
 
 ## Installation
@@ -53,6 +55,64 @@ pip install accelerate bitsandbytes
 - **YannQi/R-4B** (default)
 - **OpenGVLab/InternVL3-8B**
 - **Qwen/Qwen3-VL-8B-Instruct**
+
+## Quick Testing
+
+Before running full training or inference, test your setup with these quick test scripts:
+
+### Test Inference (Single Example)
+
+Test the inference pipeline on a single example to verify everything works:
+
+```bash
+# Test with default model and device
+python test_inference.py
+
+# Test with specific model
+python test_inference.py --model YannQi/R-4B
+
+# Test on CPU
+python test_inference.py --device cpu
+
+# Test with custom test file
+python test_inference.py --test-json data/traffic_buddy_train+public_test/public_test/public_test.json
+```
+
+**Output**: Shows the predicted answer for one example question with detailed logging.
+
+### Test Training (Small Subset)
+
+Test the training pipeline on a small subset (10 samples by default) to verify everything works:
+
+```bash
+# Test with default settings (10 samples, 1 epoch)
+python test_train.py
+
+# Test with custom number of samples
+python test_train.py --samples 5
+
+# Test with specific model
+python test_train.py --model YannQi/R-4B
+
+# Test on CPU
+python test_train.py --device cpu
+
+# Test without LoRA
+python test_train.py --no-lora
+
+# Test with more epochs
+python test_train.py --samples 20 --epochs 2 --batch-size 2
+```
+
+**Output**: Trains on a small subset and saves a test checkpoint to `test_checkpoints/`.
+
+**Why test first?**
+- ✅ Verifies your environment is set up correctly
+- ✅ Tests data paths and file access
+- ✅ Catches errors quickly without waiting for full training
+- ✅ Checks GPU/CPU compatibility
+- ✅ Validates model loading and inference
+- ✅ Fast feedback (seconds to minutes instead of hours)
 
 ## Training
 
@@ -266,7 +326,6 @@ USE_MID_FRAME_ONLY = False        # Extract only middle frame
 
 #### Inference Settings
 ```python
-THINKING_MODE = "auto"      # "auto", "explicit", or "non-thinking"
 MAX_NEW_TOKENS = 512        # Maximum response length
 TEMPERATURE = 0.1           # Sampling temperature
 DO_SAMPLE = False           # Use greedy decoding

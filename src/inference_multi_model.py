@@ -149,7 +149,6 @@ class MultiModelInferencePipeline:
                 max_new_tokens=config.MAX_NEW_TOKENS,
                 do_sample=config.DO_SAMPLE,
                 temperature=config.TEMPERATURE,
-                thinking_mode=config.THINKING_MODE,
             )
         except Exception as e:
             print(f"Error generating response: {e}")

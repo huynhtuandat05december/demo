@@ -27,7 +27,9 @@ MAX_FRAMES_PER_VIDEO = 20  # Maximum number of frames to extract
 USE_MID_FRAME_ONLY = False  # If True, only extract the middle frame
 
 # Inference configuration
-THINKING_MODE = "auto"  # "auto", "explicit", or "non-thinking"
+# Note: THINKING_MODE is not supported by most vision-language models
+# It's only available for specific models like some Claude models
+# THINKING_MODE = "auto"  # "auto", "explicit", or "non-thinking"
 MAX_NEW_TOKENS = 512
 TEMPERATURE = 0.1  # Low temperature for more deterministic outputs
 DO_SAMPLE = False  # Use greedy decoding for consistent answers

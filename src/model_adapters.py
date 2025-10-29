@@ -67,6 +67,7 @@ class R4BAdapter(BaseModelAdapter):
             messages,
             tokenize=False,
             add_generation_prompt=True,
+            thinking_mode="auto"
         )
 
         inputs = self.processor(
@@ -82,16 +83,19 @@ class R4BAdapter(BaseModelAdapter):
         max_new_tokens = kwargs.get("max_new_tokens", 512)
         do_sample = kwargs.get("do_sample", False)
         temperature = kwargs.get("temperature", 0.1)
-        thinking_mode = kwargs.get("thinking_mode", "auto")
+
+        # Prepare generation kwargs
+        gen_kwargs = {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": do_sample,
+        }
+
+        # Only add temperature if sampling is enabled
+        if do_sample:
+            gen_kwargs["temperature"] = temperature
 
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=do_sample,
-                temperature=temperature if do_sample else None,
-                thinking_mode=thinking_mode,
-            )
+            outputs = self.model.generate(**inputs, **gen_kwargs)
 
         response = self.processor.batch_decode(
             outputs,

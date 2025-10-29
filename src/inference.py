@@ -164,13 +164,17 @@ class R4BInferencePipeline:
 
         # Generate response
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=config.MAX_NEW_TOKENS,
-                do_sample=config.DO_SAMPLE,
-                temperature=config.TEMPERATURE if config.DO_SAMPLE else None,
-                thinking_mode=config.THINKING_MODE,
-            )
+            # Prepare generation kwargs
+            gen_kwargs = {
+                "max_new_tokens": config.MAX_NEW_TOKENS,
+                "do_sample": config.DO_SAMPLE,
+            }
+
+            # Only add temperature if sampling is enabled
+            if config.DO_SAMPLE:
+                gen_kwargs["temperature"] = config.TEMPERATURE
+
+            outputs = self.model.generate(**inputs, **gen_kwargs)
 
         # Decode response
         response = self.processor.batch_decode(
