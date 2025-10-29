@@ -276,10 +276,16 @@ class InternVL35Inference:
                 model_kwargs["torch_dtype"] = torch.bfloat16
 
             elif load_in_8bit:
+                from transformers import BitsAndBytesConfig
                 print("  Using 8-bit quantization (requires bitsandbytes)")
-                model_kwargs["load_in_8bit"] = True
+
+                quantization_config = BitsAndBytesConfig(
+                    load_in_8bit=True,
+                    llm_int8_threshold=6.0
+                )
+                model_kwargs["quantization_config"] = quantization_config
                 model_kwargs["device_map"] = "auto"
-                model_kwargs["torch_dtype"] = torch.bfloat16
+                model_kwargs["torch_dtype"] = torch.float16
 
             else:
                 # Full precision with flash attention
@@ -299,6 +305,25 @@ class InternVL35Inference:
             ).eval()
 
             print(f"✓ Model loaded successfully")
+
+            # Report memory usage after model loading
+            if device == "cuda" and torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                reserved = torch.cuda.memory_reserved() / 1024**3
+                print(f"  Model memory: {allocated:.2f} GB allocated, {reserved:.2f} GB reserved")
+
+                # Verify quantization worked
+                if load_in_8bit and allocated > 12:
+                    print(f"  ⚠️  Warning: 8-bit model using {allocated:.2f} GB (expected ~8-10 GB)")
+                    print(f"     Quantization may not have worked properly")
+                elif load_in_4bit and allocated > 8:
+                    print(f"  ⚠️  Warning: 4-bit model using {allocated:.2f} GB (expected ~4-6 GB)")
+                    print(f"     Quantization may not have worked properly")
+                elif load_in_8bit:
+                    print(f"  ✓ 8-bit quantization successful (~{100 - (allocated/20)*100:.0f}% memory reduction)")
+                elif load_in_4bit:
+                    print(f"  ✓ 4-bit quantization successful (~{100 - (allocated/20)*100:.0f}% memory reduction)")
+
         except Exception as e:
             print(f"❌ Error loading model: {e}")
             raise
