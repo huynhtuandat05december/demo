@@ -110,6 +110,48 @@ class VideoProcessor:
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         return Image.fromarray(frame_rgb)
 
+    def extract_frames_at_timestamps(
+        self, video_path: Path, timestamps: List[float]
+    ) -> List[Image.Image]:
+        """
+        Extract frames at specific timestamps from a video.
+
+        Args:
+            video_path: Path to the video file
+            timestamps: List of timestamps in seconds
+
+        Returns:
+            List of PIL Images at the specified timestamps
+        """
+        if not video_path.exists():
+            raise FileNotFoundError(f"Video file not found: {video_path}")
+
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            raise ValueError(f"Failed to open video: {video_path}")
+
+        try:
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frames = []
+
+            for timestamp in timestamps:
+                # Convert timestamp to frame number
+                frame_num = int(timestamp * fps)
+
+                # Seek to the frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+                ret, frame = cap.read()
+
+                if ret:
+                    frames.append(self._convert_frame(frame))
+                else:
+                    print(f"Warning: Could not extract frame at {timestamp}s")
+
+            return frames
+
+        finally:
+            cap.release()
+
     def clear_cache(self):
         """Clear the frame cache."""
         self._frame_cache.clear()
