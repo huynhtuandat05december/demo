@@ -86,20 +86,20 @@ def test_inference():
     parser.add_argument(
         "--min-frames",
         type=int,
-        default=4,
-        help="Minimum frames to extract (default: 4)"
+        default=2,
+        help="Minimum frames to extract (default: 2, memory optimized)"
     )
     parser.add_argument(
         "--max-frames",
         type=int,
-        default=8,
-        help="Maximum frames to extract (default: 8)"
+        default=4,
+        help="Maximum frames to extract (default: 4, memory optimized)"
     )
     parser.add_argument(
         "--max-num",
         type=int,
-        default=4,
-        help="Max number of tiles per frame (default: 4)"
+        default=1,
+        help="Max number of tiles per frame (default: 1, memory optimized)"
     )
     parser.add_argument(
         "--test-json",
@@ -228,15 +228,14 @@ def test_inference():
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
             print(f"\n❌ CUDA Out of Memory Error!")
-            print(f"\n💡 Suggestions for 12GB+ VRAM:")
-            print(f"   1. Use 8-bit quantization: --load-in-8bit (reduces to ~4-6 GB model + ~4-6 GB inference)")
-            print(f"   2. Use 4-bit quantization: --load-in-4bit (reduces to ~2-4 GB model + ~3-4 GB inference)")
-            print(f"   3. Reduce frames: --min-frames 4 --max-frames 12 (reduces inference memory)")
-            print(f"   4. Reduce tiles per frame: --max-num 6 (reduces inference memory)")
-            print(f"   5. Keep Flash Attention enabled (remove --no-flash-attn if present)")
-            print(f"   6. Try running on CPU: --device cpu (slow but works)")
-            print(f"   7. Close other GPU applications")
-            print(f"\n   Note: Full precision requires ~10 GB model + ~6-7 GB inference = ~17 GB total")
+            print(f"\n💡 Suggestions:")
+            print(f"   1. Use 4-bit quantization: --load-in-4bit (reduces to ~2-3 GB model + ~2-3 GB inference)")
+            print(f"   2. Use 8-bit quantization: --load-in-8bit (reduces to ~4-5 GB model + ~3-4 GB inference)")
+            print(f"   3. Ultra minimal frames: --min-frames 1 --max-frames 2 (minimum memory)")
+            print(f"   4. Disable support frames: --no-support-frames (uses less context)")
+            print(f"   5. Try running on CPU: --device cpu (slow but works)")
+            print(f"   6. Close other GPU applications")
+            print(f"\n   Note: Current defaults already optimized (2-4 frames, 1 patch, no thumbnail)")
             if torch.cuda.is_available():
                 print(f"\n📊 GPU Memory: {get_gpu_memory_info()}")
         sys.exit(1)

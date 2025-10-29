@@ -150,7 +150,7 @@ def load_video(video_path, bound=None, input_size=448, max_num=1, num_segments=3
 
     for frame_index in frame_indices:
         img = Image.fromarray(vr[frame_index].asnumpy()).convert('RGB')
-        img = dynamic_preprocess(img, image_size=input_size, use_thumbnail=True, max_num=max_num)
+        img = dynamic_preprocess(img, image_size=input_size, use_thumbnail=False, max_num=max_num)
         pixel_values = [transform(tile) for tile in img]
         pixel_values = torch.stack(pixel_values)
         num_patches_list.append(pixel_values.shape[0])
@@ -172,9 +172,9 @@ class InternVL35_4BInference:
         self,
         model_name: str = "OpenGVLab/InternVL3_5-4B",
         device: str = "cuda",
-        min_frames: int = 4,
-        max_frames: int = 8,
-        max_num: int = 4,
+        min_frames: int = 2,
+        max_frames: int = 4,
+        max_num: int = 1,
         use_support_frames: bool = True,
         context_window: float = 0.5,
         simple_prompts: bool = False,
@@ -635,13 +635,13 @@ def main():
     """Example usage of the inference pipeline."""
     from src import config
 
-    # Initialize pipeline with default settings for 12GB+ VRAM
+    # Initialize pipeline with memory-optimized settings
     pipeline = InternVL35_4BInference(
         model_name="OpenGVLab/InternVL3_5-4B",
         device=config.DEVICE,
-        min_frames=4,
-        max_frames=8,
-        max_num=4,
+        min_frames=2,  # Extreme reduction to avoid OOM
+        max_frames=4,  # Extreme reduction to avoid OOM
+        max_num=1,     # No tiling to minimize memory usage
         use_support_frames=config.USE_SUPPORT_FRAMES,
         use_flash_attn=True,  # Enable flash attention for memory efficiency
         load_in_8bit=False,  # Set to True for GPUs with <12GB VRAM

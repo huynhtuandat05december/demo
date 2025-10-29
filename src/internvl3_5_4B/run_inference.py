@@ -43,18 +43,18 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run with defaults (CUDA, 8-32 frames, Flash Attention)
-  # Recommended for 12GB+ VRAM
+  # Run with defaults (CUDA, 2-4 frames, 1 patch, memory optimized)
+  # Recommended for 24GB VRAM
   python run_inference.py
 
-  # With 8-bit quantization for lower-end GPUs
-  python run_inference.py --load-in-8bit
+  # With 4-bit quantization for even lower memory
+  python run_inference.py --load-in-4bit
 
   # Run on CPU (very slow)
   python run_inference.py --device cpu
 
-  # Custom frame configuration
-  python run_inference.py --min-frames 16 --max-frames 64 --max-num 8
+  # Custom frame configuration (increase if you have more VRAM)
+  python run_inference.py --min-frames 8 --max-frames 16 --max-num 4
 
   # Custom output file
   python run_inference.py --output results/my_submission.csv
@@ -79,24 +79,24 @@ Examples:
         help="Device to use (default: cuda)"
     )
 
-    # Frame extraction configuration
+    # Frame extraction configuration (memory-optimized defaults)
     parser.add_argument(
         "--min-frames",
         type=int,
-        default=8,
-        help="Minimum frames to extract (default: 8)"
+        default=2,
+        help="Minimum frames to extract (default: 2, memory optimized)"
     )
     parser.add_argument(
         "--max-frames",
         type=int,
-        default=32,
-        help="Maximum frames to extract, max 512 (default: 32)"
+        default=4,
+        help="Maximum frames to extract, max 512 (default: 4, memory optimized)"
     )
     parser.add_argument(
         "--max-num",
         type=int,
-        default=12,
-        help="Max number of tiles per frame (default: 12)"
+        default=1,
+        help="Max number of tiles per frame (default: 1, memory optimized)"
     )
 
     # Data paths
