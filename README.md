@@ -26,6 +26,7 @@ road_buddy/
 │       ├── train_config.py        # Training configuration
 │       ├── train_dataset.py       # Training dataset class
 │       ├── train.py               # Main training script
+│       ├── test_train.py          # Test training pipeline
 │       └── evaluate.py            # Model evaluation script
 ├── output/
 │   ├── submission.csv             # Inference predictions
@@ -145,7 +146,33 @@ All other dependencies should already be installed from the base requirements.
 
 ### Quick Start
 
-#### 1. Configure Training (Optional)
+#### 1. Test Training Pipeline (Recommended)
+
+Before running full training, test that everything works:
+
+```bash
+cd src/internvl3_8B
+
+# Quick test (dataset only, no model loading)
+python test_train.py --skip-model
+
+# Full test (includes model loading and forward pass)
+python test_train.py --samples 3
+
+# Test with more samples
+python test_train.py --samples 10
+```
+
+This will verify:
+- ✅ Dataset loads correctly
+- ✅ Data paths are valid
+- ✅ Model can be initialized with LoRA
+- ✅ Forward pass works
+- ✅ GPU/CPU configuration is correct
+
+**Fix any errors before proceeding to full training!**
+
+#### 2. Configure Training (Optional)
 
 Edit `src/internvl3_8B/train_config.py` to customize training parameters:
 
@@ -157,7 +184,7 @@ LEARNING_RATE = 2e-4  # Standard for LoRA
 NUM_EPOCHS = 5  # Number of training epochs
 ```
 
-#### 2. Run Training
+#### 3. Run Training
 
 ```bash
 cd src/internvl3_8B
@@ -171,7 +198,7 @@ Training will:
 4. Train for 5 epochs with evaluation after each epoch
 5. Save checkpoints and best model to `output/internvl3_8B_lora/`
 
-#### 3. Monitor Training
+#### 4. Monitor Training
 
 View training progress with TensorBoard:
 
@@ -179,7 +206,7 @@ View training progress with TensorBoard:
 tensorboard --logdir output/internvl3_8B_lora
 ```
 
-#### 4. Evaluate Trained Model
+#### 5. Evaluate Trained Model
 
 After training completes, evaluate on validation set:
 
@@ -519,6 +546,45 @@ test_0003,B
 - **Other**: All inference dependencies above
 
 ## Troubleshooting
+
+### Training Issues
+
+**Before training, always run the test script first:**
+```bash
+cd src/internvl3_8B
+python test_train.py --samples 5
+```
+
+This will catch configuration errors early!
+
+**Dataset loading errors:**
+```bash
+# Test dataset loading without model
+cd src/internvl3_8B
+python test_train.py --skip-model
+```
+
+**CUDA out of memory during training:**
+```python
+# Edit src/internvl3_8B/train_config.py
+BATCH_SIZE = 2  # Reduce from 4
+GRADIENT_ACCUMULATION_STEPS = 8  # Increase to maintain effective batch size
+MAX_FRAMES = 4  # Reduce from 6
+MAX_NUM_PATCHES = 4  # Reduce from 6
+```
+
+**Training too slow:**
+```python
+# Edit src/internvl3_8B/train_config.py
+DATALOADER_NUM_WORKERS = 2  # Reduce from 4
+USE_SUPPORT_FRAMES = False  # Disable for faster loading
+```
+
+**Model not improving:**
+- Train longer: `NUM_EPOCHS = 10`
+- Adjust learning rate: `LEARNING_RATE = 1e-4`
+- Check TensorBoard logs for loss curves
+- Verify dataset quality with test_train.py
 
 ### Inference Issues
 
