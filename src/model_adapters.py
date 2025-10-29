@@ -18,6 +18,10 @@ class BaseModelAdapter(ABC):
         self.processor = None
         self.tokenizer = None
 
+        # Clear CUDA cache before loading model
+        if device == "cuda" and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
     @abstractmethod
     def load_model(self):
         """Load the model and processor."""

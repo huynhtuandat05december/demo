@@ -34,6 +34,11 @@ class R4BInferencePipeline:
         print(f"Loading model: {model_name}")
         print(f"Device: {device}")
 
+        # Clear CUDA cache before loading model
+        if device == "cuda" and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            print("Cleared CUDA cache")
+
         # Load model and processor
         self.model = AutoModel.from_pretrained(
             model_name,
@@ -188,6 +193,10 @@ class R4BInferencePipeline:
 
         # Parse answer
         answer = self.parse_answer(response)
+
+        # Clear cache after inference to prevent memory buildup
+        if self.device == "cuda" and torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         return answer
 
