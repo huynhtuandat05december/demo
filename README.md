@@ -18,7 +18,6 @@ road_buddy/
 │   ├── config.py                  # Inference configuration
 │   ├── prompts.py                 # Prompt templates
 │   ├── video_processor.py         # Video frame extraction
-│   ├── train_dataset.py           # Training dataset utilities
 │   └── internvl3_8B/
 │       ├── inference.py           # InternVL3 inference
 │       ├── run_inference.py       # Run full inference
@@ -27,6 +26,7 @@ road_buddy/
 │       ├── train_dataset.py       # Training dataset class
 │       ├── train.py               # Main training script
 │       ├── test_train.py          # Test training pipeline
+│       ├── inspect_model.py       # Inspect model architecture
 │       └── evaluate.py            # Model evaluation script
 ├── output/
 │   ├── submission.csv             # Inference predictions
@@ -556,6 +556,16 @@ python test_train.py --samples 5
 ```
 
 This will catch configuration errors early!
+
+**Target modules error (LoRA configuration):**
+```bash
+# If you see "Target modules not found" error:
+cd src/internvl3_8B
+python inspect_model.py
+
+# This will show you the correct layer names for your model
+# Then update train_config.py with the suggested target_modules
+```
 
 **Dataset loading errors:**
 ```bash
