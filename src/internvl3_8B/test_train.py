@@ -39,7 +39,7 @@ def test_dataset_loading(num_samples: int = 5):
         print("\nLoading TRAIN dataset...")
         train_dataset = TrafficVideoDataset(
             json_path=cfg.TRAIN_JSON,
-            video_dir=cfg.TRAIN_VIDEO_DIR,
+            data_root=cfg.DATA_ROOT,
             split="train",
             train_val_split=cfg.TRAIN_VAL_SPLIT,
             random_seed=cfg.RANDOM_SEED,
@@ -55,7 +55,7 @@ def test_dataset_loading(num_samples: int = 5):
         print("\nLoading VAL dataset...")
         val_dataset = TrafficVideoDataset(
             json_path=cfg.TRAIN_JSON,
-            video_dir=cfg.TRAIN_VIDEO_DIR,
+            data_root=cfg.DATA_ROOT,
             split="val",
             train_val_split=cfg.TRAIN_VAL_SPLIT,
             random_seed=cfg.RANDOM_SEED,

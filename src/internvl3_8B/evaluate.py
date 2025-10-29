@@ -371,7 +371,7 @@ def main():
     print("Loading dataset...")
     dataset = TrafficVideoDataset(
         json_path=cfg.TRAIN_JSON,
-        video_dir=cfg.TRAIN_VIDEO_DIR,
+        data_root=cfg.DATA_ROOT,
         split=args.split,
         train_val_split=cfg.TRAIN_VAL_SPLIT,
         random_seed=cfg.RANDOM_SEED,

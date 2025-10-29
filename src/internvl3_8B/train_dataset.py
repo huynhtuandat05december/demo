@@ -37,7 +37,7 @@ class TrafficVideoDataset(Dataset):
     def __init__(
         self,
         json_path: Path,
-        video_dir: Path,
+        data_root: Path,
         split: str = "train",
         train_val_split: float = 0.8,
         random_seed: int = 42,
@@ -54,7 +54,7 @@ class TrafficVideoDataset(Dataset):
 
         Args:
             json_path: Path to train.json file
-            video_dir: Directory containing video files
+            data_root: Root directory containing train/videos (e.g., RoadBuddy/traffic_buddy_train+public_test)
             split: 'train' or 'val'
             train_val_split: Ratio of train/val split (default: 0.8 = 80% train)
             random_seed: Random seed for reproducible splits
@@ -66,7 +66,7 @@ class TrafficVideoDataset(Dataset):
             context_window: Seconds of context around support frames
             use_vietnamese_prompts: Use Vietnamese prompt templates
         """
-        self.video_dir = Path(video_dir)
+        self.data_root = Path(data_root)
         self.split = split
         self.min_frames = min_frames
         self.max_frames = max_frames
@@ -228,8 +228,8 @@ class TrafficVideoDataset(Dataset):
         support_frames = sample.get('support_frames', [])
         video_rel_path = sample['video_path']
 
-        # Construct video path
-        video_path = self.video_dir / video_rel_path
+        # Construct video path (video_rel_path is relative to data_root)
+        video_path = self.data_root / video_rel_path
 
         # Check if video exists
         if not video_path.exists():
