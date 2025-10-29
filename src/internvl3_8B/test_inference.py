@@ -9,11 +9,11 @@ Tests the enhanced multi-frame traffic inference with:
 - Accuracy metrics (when ground truth available)
 
 Usage:
-    python test_traffic_inference.py
-    python test_traffic_inference.py --samples 5
-    python test_traffic_inference.py --device cpu --samples 3
-    python test_traffic_inference.py --samples 10 --compare
-    python test_traffic_inference.py --min-frames 8 --max-frames 10
+    python test_inference.py
+    python test_inference.py --samples 5
+    python test_inference.py --device cpu --samples 3
+    python test_inference.py --samples 10 --compare
+    python test_inference.py --min-frames 8 --max-frames 10
 """
 
 import argparse
@@ -28,7 +28,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src import config
-from src.traffic_inference import InternVL3TrafficInference
+from src.internvl3_8B.inference import InternVL3Inference
 
 
 def format_duration(seconds: float) -> str:
@@ -59,15 +59,15 @@ def get_gpu_memory_info() -> str:
     return f"{allocated:.2f} GB allocated, {reserved:.2f} GB reserved, {free_gb:.2f} GB free / {total_gb:.2f} GB total"
 
 
-def test_traffic_inference():
-    """Test the traffic inference pipeline on sample videos."""
+def test_inference():
+    """Test the inference pipeline on sample videos."""
     parser = argparse.ArgumentParser(
         description="Test InternVL3 traffic inference on sample videos"
     )
     parser.add_argument(
         "--model",
         type=str,
-        default=config.TRAFFIC_MODEL_NAME,
+        default=config.INTERNVL_MODEL_NAME,
         help="Model to use (default: OpenGVLab/InternVL3-8B)"
     )
     parser.add_argument(
@@ -86,19 +86,19 @@ def test_traffic_inference():
     parser.add_argument(
         "--min-frames",
         type=int,
-        default=config.TRAFFIC_MIN_FRAMES,
+        default=config.MIN_FRAMES,
         help="Minimum frames to extract (default: 6)"
     )
     parser.add_argument(
         "--max-frames",
         type=int,
-        default=config.TRAFFIC_MAX_FRAMES,
+        default=config.MAX_FRAMES,
         help="Maximum frames to extract (default: 12)"
     )
     parser.add_argument(
         "--max-num",
         type=int,
-        default=config.TRAFFIC_MAX_NUM,
+        default=config.INTERNVL_MAX_NUM,
         help="InternVL max_num parameter (default: 24)"
     )
     parser.add_argument(
@@ -120,14 +120,14 @@ def test_traffic_inference():
     parser.add_argument(
         "--load-in-8bit",
         action="store_true",
-        default=config.TRAFFIC_LOAD_IN_8BIT,
-        help=f"Use 8-bit quantization to reduce memory usage (~50%% reduction) (default: {config.TRAFFIC_LOAD_IN_8BIT})"
+        default=config.INTERNVL_LOAD_IN_8BIT,
+        help=f"Use 8-bit quantization to reduce memory usage (~50%% reduction) (default: {config.INTERNVL_LOAD_IN_8BIT})"
     )
     parser.add_argument(
         "--load-in-4bit",
         action="store_true",
-        default=config.TRAFFIC_LOAD_IN_4BIT,
-        help=f"Use 4-bit quantization to reduce memory usage (~75%% reduction) (default: {config.TRAFFIC_LOAD_IN_4BIT})"
+        default=config.INTERNVL_LOAD_IN_4BIT,
+        help=f"Use 4-bit quantization to reduce memory usage (~75%% reduction) (default: {config.INTERNVL_LOAD_IN_4BIT})"
     )
     parser.add_argument(
         "--no-quantization",
@@ -217,11 +217,11 @@ def test_traffic_inference():
         print(f"GPU Memory: {get_gpu_memory_info()}\n")
 
     # Initialize pipeline
-    print("Initializing traffic inference pipeline...\n")
+    print("Initializing inference pipeline...\n")
     start_time = time.time()
 
     try:
-        pipeline = InternVL3TrafficInference(
+        pipeline = InternVL3Inference(
             model_name=args.model,
             device=args.device,
             min_frames=args.min_frames,
@@ -384,13 +384,13 @@ def test_traffic_inference():
     print(f"\n{'='*70}")
     print("✅ TEST COMPLETED SUCCESSFULLY!")
     print(f"{'='*70}")
-    print(f"\nThe traffic inference pipeline is working correctly on {len(results)} sample(s).")
+    print(f"\nThe inference pipeline is working correctly on {len(results)} sample(s).")
     print("\nYou can now run full inference with:")
-    print(f"  from src.traffic_inference import InternVL3TrafficInference")
-    print(f"  pipeline = InternVL3TrafficInference()")
+    print(f"  from src.internvl3_8B.inference import InternVL3Inference")
+    print(f"  pipeline = InternVL3Inference()")
     print(f"  pipeline.run_pipeline(...)")
     print()
 
 
 if __name__ == "__main__":
-    test_traffic_inference()
+    test_inference()

@@ -7,16 +7,16 @@ complete test dataset and generates a CSV submission file.
 
 Usage:
     # Basic usage with defaults
-    python run_traffic_inference.py
+    python run_inference.py
 
     # Custom configuration
-    python run_traffic_inference.py --device cuda --min-frames 8 --max-frames 10
+    python run_inference.py --device cuda --min-frames 8 --max-frames 10
 
     # CPU mode
-    python run_traffic_inference.py --device cpu
+    python run_inference.py --device cpu
 
     # Custom output path
-    python run_traffic_inference.py --output my_results.csv
+    python run_inference.py --output my_results.csv
 """
 
 import argparse
@@ -28,7 +28,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src import config
-from src.traffic_inference import InternVL3TrafficInference
+from src.internvl3_8B.inference import InternVL3Inference
 
 
 def main():
@@ -39,19 +39,19 @@ def main():
         epilog="""
 Examples:
   # Run with defaults (CUDA, 6-12 frames, max_num=24)
-  python run_traffic_inference.py
+  python run_inference.py
 
   # Run on CPU
-  python run_traffic_inference.py --device cpu
+  python run_inference.py --device cpu
 
   # Custom frame configuration
-  python run_traffic_inference.py --min-frames 8 --max-frames 10 --max-num 16
+  python run_inference.py --min-frames 8 --max-frames 10 --max-num 16
 
   # Custom output file
-  python run_traffic_inference.py --output results/my_submission.csv
+  python run_inference.py --output results/my_submission.csv
 
   # Balanced configuration (faster, less memory)
-  python run_traffic_inference.py --min-frames 6 --max-frames 8 --max-num 12
+  python run_inference.py --min-frames 6 --max-frames 8 --max-num 12
         """
     )
 
@@ -59,7 +59,7 @@ Examples:
     parser.add_argument(
         "--model",
         type=str,
-        default=config.TRAFFIC_MODEL_NAME,
+        default=config.INTERNVL_MODEL_NAME,
         help="Model to use (default: OpenGVLab/InternVL3-8B)"
     )
     parser.add_argument(
@@ -74,20 +74,20 @@ Examples:
     parser.add_argument(
         "--min-frames",
         type=int,
-        default=config.TRAFFIC_MIN_FRAMES,
-        help=f"Minimum frames to extract (default: {config.TRAFFIC_MIN_FRAMES})"
+        default=config.MIN_FRAMES,
+        help=f"Minimum frames to extract (default: {config.MIN_FRAMES})"
     )
     parser.add_argument(
         "--max-frames",
         type=int,
-        default=config.TRAFFIC_MAX_FRAMES,
-        help=f"Maximum frames to extract (default: {config.TRAFFIC_MAX_FRAMES})"
+        default=config.MAX_FRAMES,
+        help=f"Maximum frames to extract (default: {config.MAX_FRAMES})"
     )
     parser.add_argument(
         "--max-num",
         type=int,
-        default=config.TRAFFIC_MAX_NUM,
-        help=f"InternVL max_num parameter (default: {config.TRAFFIC_MAX_NUM})"
+        default=config.INTERNVL_MAX_NUM,
+        help=f"InternVL max_num parameter (default: {config.INTERNVL_MAX_NUM})"
     )
 
     # Data paths
@@ -133,7 +133,7 @@ Examples:
     if args.output is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         model_short = args.model.split("/")[-1].replace("-", "_")
-        args.output = config.OUTPUT_DIR / f"traffic_inference_{model_short}_{timestamp}.csv"
+        args.output = config.OUTPUT_DIR / f"inference_{model_short}_{timestamp}.csv"
     else:
         # Ensure output directory exists
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -178,8 +178,8 @@ Examples:
 
     # Initialize pipeline
     try:
-        print("Initializing InternVL3 traffic inference pipeline...\n")
-        pipeline = InternVL3TrafficInference(
+        print("Initializing InternVL3 inference pipeline...\n")
+        pipeline = InternVL3Inference(
             model_name=args.model,
             device=args.device,
             min_frames=args.min_frames,

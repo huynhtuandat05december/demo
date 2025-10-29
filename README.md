@@ -1,6 +1,6 @@
-# Road Buddy - Traffic Video Question Answering
+# Road Buddy - Video Question Answering
 
-A video question answering system for traffic scenarios using vision-language models with training and inference capabilities.
+A video question answering system for dashcam scenarios using vision-language models for inference.
 
 ## Project Structure
 
@@ -8,30 +8,24 @@ A video question answering system for traffic scenarios using vision-language mo
 road_buddy/
 ├── data/
 │   └── traffic_buddy_train+public_test/
-│       ├── train/
-│       │   ├── train.json
-│       │   └── videos/
 │       └── public_test/
 │           ├── public_test.json
 │           └── videos/
 ├── src/
 │   ├── config.py                  # Inference configuration
-│   ├── train_config.py            # Training configuration
-│   ├── dataset.py                 # Training dataset
-│   ├── train.py                   # Training script
+│   ├── prompts.py                 # Prompt templates
+│   ├── video_processor.py         # Video frame extraction
+│   ├── model_adapters.py          # Model-specific adapters
 │   ├── inference.py               # Single model inference
 │   ├── inference_multi_model.py   # Multi-model inference
-│   ├── model_adapters.py          # Model-specific adapters
-│   └── video_processor.py         # Video frame extraction
-├── checkpoints/                   # Training checkpoints
-│   └── best_model_hf/             # Best trained model
+│   └── internvl3_8B/
+│       ├── inference.py           # InternVL3 inference
+│       ├── run_inference.py       # Run full inference
+│       └── test_inference.py      # Test on samples
 ├── output/
 │   └── submission.csv             # Inference predictions
-├── train.py                       # Training runner
 ├── run.py                         # Simple inference runner
-├── run_multi_model.py             # Flexible inference runner
-├── test_inference.py              # Test inference on single example
-└── test_train.py                  # Test training on small subset
+└── run_multi_model.py             # Flexible inference runner
 ```
 
 ## Installation
@@ -41,9 +35,6 @@ road_buddy/
 ```bash
 # Install basic dependencies
 uv sync
-
-# For training with LoRA
-uv sync --extra train
 
 # For InternVL3-8B model
 uv sync --extra internvl
@@ -59,19 +50,10 @@ uv sync --extra all
 pip install torch transformers pillow pandas tqdm opencv-python
 ```
 
-#### For Training (Additional Dependencies)
-```bash
-# For LoRA-based fine-tuning (recommended)
-pip install peft
-
-# Optional: For advanced features
-pip install accelerate bitsandbytes
-```
-
 #### Model-Specific Dependencies
 ```bash
 # For InternVL3-8B model
-pip install einops timm
+pip install einops timm decord
 
 # For Qwen models (if using Qwen3-VL-8B-Instruct)
 # All dependencies should be covered by basic installation
@@ -84,10 +66,6 @@ pip install einops timm
 - **Qwen/Qwen3-VL-8B-Instruct** - No additional dependencies. Recommended to use with CPU for testing due to memory requirements.
 
 ## Quick Testing
-
-Before running full training or inference, test your setup with these quick test scripts:
-
-### Test Inference (Single or Multiple Examples)
 
 Test the inference pipeline on one or more examples to verify everything works:
 
@@ -116,161 +94,13 @@ python test_inference.py --test-json data/traffic_buddy_train+public_test/public
 
 **Output**: Shows the predicted answer for each sample with detailed logging, accuracy (if ground truth available), and success/failure summary.
 
-### Test Training (Small Subset)
-
-Test the training pipeline on a small subset (10 samples by default) to verify everything works:
-
-```bash
-# Test with default settings (10 samples, 1 epoch)
-python test_train.py
-
-# Test with custom number of samples
-python test_train.py --samples 5
-
-# Test with specific model
-python test_train.py --model YannQi/R-4B
-
-# Test on CPU
-python test_train.py --device cpu
-
-# Test without LoRA
-python test_train.py --no-lora
-
-# Test with more epochs
-python test_train.py --samples 20 --epochs 2 --batch-size 2
-```
-
-**Output**: Trains on a small subset and saves a test checkpoint to `test_checkpoints/`.
-
 **Why test first?**
 - ✅ Verifies your environment is set up correctly
 - ✅ Tests data paths and file access
-- ✅ Catches errors quickly without waiting for full training
+- ✅ Catches errors quickly
 - ✅ Checks GPU/CPU compatibility
 - ✅ Validates model loading and inference
-- ✅ Fast feedback (seconds to minutes instead of hours)
-
-## Training
-
-Train a model on the traffic video QA dataset.
-
-### Quick Start Training
-
-```bash
-# Basic training with default settings
-# Checkpoints will be saved to: checkpoints/{model}_{date}/
-python train.py
-
-# Training with custom hyperparameters
-python train.py --batch-size 4 --learning-rate 1e-5 --epochs 5
-
-# Training with LoRA (parameter-efficient, recommended)
-python train.py --use-lora --lora-r 8 --lora-alpha 16
-
-# Debug mode (small dataset for testing)
-python train.py --debug
-
-# Custom output directory
-python train.py --output-dir my_custom_checkpoints
-```
-
-**Note**: By default, checkpoints are saved to `checkpoints/{model_name}_{date}/`. For example, training R-4B on 2025-01-15 saves to `checkpoints/R_4B_20250115/`.
-
-### Training Options
-
-#### Model Selection
-```bash
-# Train specific model
-python train.py --model YannQi/R-4B
-python train.py --model OpenGVLab/InternVL3-8B
-```
-
-#### Hyperparameters
-```bash
-python train.py \
-    --batch-size 4 \
-    --gradient-accumulation-steps 4 \
-    --learning-rate 2e-5 \
-    --epochs 3 \
-    --warmup-ratio 0.1
-```
-
-#### LoRA Configuration
-```bash
-# Enable LoRA for efficient fine-tuning
-python train.py --use-lora --lora-r 8 --lora-alpha 16
-
-# Full fine-tuning (not recommended, requires more GPU memory)
-python train.py --no-lora
-```
-
-#### Training Features
-```bash
-# Mixed precision training (faster, less memory)
-python train.py --fp16
-
-# Early stopping
-python train.py --early-stopping --early-stopping-patience 3
-
-# Custom output directory
-python train.py --output-dir my_checkpoints
-
-# Resume from checkpoint
-python train.py --resume checkpoints/checkpoint_epoch_2.pt
-```
-
-#### Device Selection
-```bash
-# Use GPU (default)
-python train.py --device cuda
-
-# Use CPU (slower)
-python train.py --device cpu
-```
-
-### Training Configuration
-
-Edit `src/train_config.py` for advanced configuration:
-
-```python
-# Training hyperparameters
-BATCH_SIZE = 2
-GRADIENT_ACCUMULATION_STEPS = 4
-LEARNING_RATE = 2e-5
-NUM_EPOCHS = 3
-WARMUP_RATIO = 0.1
-
-# LoRA settings (parameter-efficient fine-tuning)
-USE_LORA = True
-LORA_R = 8
-LORA_ALPHA = 16
-
-# Data split
-TRAIN_VAL_SPLIT = 0.9  # 90% train, 10% validation
-
-# Checkpointing
-SAVE_EVERY_N_EPOCHS = 1
-SAVE_BEST_MODEL = True
-
-# Early stopping
-USE_EARLY_STOPPING = True
-EARLY_STOPPING_PATIENCE = 3
-```
-
-### Training Output
-
-After training, you'll find:
-- **Checkpoints**: Saved in `checkpoints/` directory
-- **Best model**: `checkpoints/best_model_hf/` (HuggingFace format)
-- **Training logs**: Console output with loss and accuracy
-
-Example output:
-```
-Epoch 1/3 - Average Loss: 0.8234
-Validation Accuracy: 0.7523 (75.23%)
-
-✅ Best model saved to: checkpoints/best_model_hf
-```
+- ✅ Fast feedback (seconds to minutes)
 
 ## Running Inference
 

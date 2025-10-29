@@ -56,34 +56,34 @@ Your answer:"""
 VALID_ANSWERS = ["A", "B", "C", "D"]
 
 # ============================================================================
-# Traffic Inference Configuration (InternVL3 Multi-Frame)
+# InternVL3 Multi-Frame Inference Configuration
 # ============================================================================
-# Configuration for the enhanced traffic video inference pipeline using
-# InternVL3-8B with multi-frame processing and traffic-optimized prompts
+# Configuration for the enhanced video inference pipeline using
+# InternVL3-8B with multi-frame processing and optimized prompts
 
-# Enable/disable traffic inference features
-TRAFFIC_INFERENCE_ENABLED = True
+# Enable/disable inference features
+INFERENCE_ENABLED = True
 
 # InternVL3-specific configuration
-TRAFFIC_MODEL_NAME = "OpenGVLab/InternVL3-8B"
-TRAFFIC_MAX_NUM = 6  # InternVL max patches per frame (REDUCED: 6=fits token limit, 12=may exceed)
-TRAFFIC_LOAD_IN_8BIT = False  # Use 8-bit quantization (~50% memory reduction) - DISABLED due to dtype issues
-TRAFFIC_LOAD_IN_4BIT = True  # Use 4-bit quantization (~75% memory reduction) - ENABLED for stability
+INTERNVL_MODEL_NAME = "OpenGVLab/InternVL3-8B"
+INTERNVL_MAX_NUM = 6  # InternVL max patches per frame (REDUCED: 6=fits token limit, 12=may exceed)
+INTERNVL_LOAD_IN_8BIT = False  # Use 8-bit quantization (~50% memory reduction) - DISABLED due to dtype issues
+INTERNVL_LOAD_IN_4BIT = True  # Use 4-bit quantization (~75% memory reduction) - ENABLED for stability
 
 # Frame extraction configuration
-TRAFFIC_MIN_FRAMES = 4  # Minimum frames for short videos (REDUCED to fit token limit)
-TRAFFIC_MAX_FRAMES = 6  # Maximum frames for long videos (REDUCED: 6 frames * 6 patches = ~36 patches)
-TRAFFIC_USE_SUPPORT_FRAMES = True  # Use support_frames timestamps when available
-TRAFFIC_CONTEXT_WINDOW = 0.5  # Seconds of context around support frames
+MIN_FRAMES = 4  # Minimum frames for short videos (REDUCED to fit token limit)
+MAX_FRAMES = 6  # Maximum frames for long videos (REDUCED: 6 frames * 6 patches = ~36 patches)
+USE_SUPPORT_FRAMES = True  # Use support_frames timestamps when available
+CONTEXT_WINDOW = 0.5  # Seconds of context around support frames
 
 # Prompt configuration
-TRAFFIC_SIMPLE_PROMPTS = False  # If True, use shorter/simpler prompt templates
-TRAFFIC_AUTO_DETECT_LANGUAGE = True  # Auto-detect Vietnamese vs English
+SIMPLE_PROMPTS = False  # If True, use shorter/simpler prompt templates
+AUTO_DETECT_LANGUAGE = True  # Auto-detect Vietnamese vs English
 
 # Performance configuration
-TRAFFIC_CPU_WARNING = True  # Warn user about CPU memory/speed limitations
-TRAFFIC_CLEAR_CUDA_CACHE = True  # Clear CUDA cache after each inference
+CPU_WARNING = True  # Warn user about CPU memory/speed limitations
+CLEAR_CUDA_CACHE = True  # Clear CUDA cache after each inference
 
 # Output configuration
-TRAFFIC_OUTPUT_FILE = OUTPUT_DIR / f"traffic_inference_{TIMESTAMP}.csv"
-TRAFFIC_VERBOSE = False  # Print detailed information during inference
+INFERENCE_OUTPUT_FILE = OUTPUT_DIR / f"inference_{TIMESTAMP}.csv"
+VERBOSE = False  # Print detailed information during inference

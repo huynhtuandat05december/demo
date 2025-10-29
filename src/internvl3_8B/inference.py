@@ -1,9 +1,9 @@
 """
-InternVL3 Traffic Video Inference Pipeline.
+InternVL3 Video Inference Pipeline.
 
-Enhanced inference for traffic dashcam videos using InternVL3-8B with:
+Enhanced inference for dashcam videos using InternVL3-8B with:
 - Multi-frame processing (6-12 frames adaptive)
-- Traffic-optimized prompts
+- Optimized prompts
 - Official InternVL3 video handling
 - Support for both CPU and CUDA
 """
@@ -23,7 +23,7 @@ from transformers import AutoModel, AutoTokenizer
 from torchvision.transforms.functional import InterpolationMode
 from decord import VideoReader, cpu
 
-from src import traffic_prompts
+from src import prompts
 
 # ImageNet normalization constants
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
@@ -161,12 +161,12 @@ def load_video(video_path, bound=None, input_size=448, max_num=1, num_segments=3
     return pixel_values, num_patches_list
 
 
-class InternVL3TrafficInference:
+class InternVL3Inference:
     """
-    Enhanced InternVL3-8B inference pipeline for traffic dashcam videos.
+    Enhanced InternVL3-8B inference pipeline for dashcam videos.
 
     This implementation processes multiple frames from each video to capture
-    temporal context and improve understanding of traffic scenarios.
+    temporal context and improve understanding of video scenarios.
     """
 
     def __init__(
@@ -183,7 +183,7 @@ class InternVL3TrafficInference:
         load_in_4bit: bool = False,
     ):
         """
-        Initialize the traffic inference pipeline.
+        Initialize the inference pipeline.
 
         Args:
             model_name: HuggingFace model name (default: OpenGVLab/InternVL3-8B)
@@ -209,7 +209,7 @@ class InternVL3TrafficInference:
         self.load_in_4bit = load_in_4bit
 
         print(f"\n{'='*60}")
-        print(f"InternVL3 Traffic Inference Pipeline")
+        print(f"InternVL3 Inference Pipeline")
         print(f"{'='*60}")
         print(f"Model: {model_name}")
         print(f"Device: {device}")
@@ -332,7 +332,7 @@ class InternVL3TrafficInference:
         num_frames: int
     ) -> str:
         """
-        Format traffic-optimized prompt.
+        Format optimized prompt.
 
         Args:
             question: Question text
@@ -342,7 +342,7 @@ class InternVL3TrafficInference:
         Returns:
             Formatted prompt string
         """
-        return traffic_prompts.get_prompt_template(
+        return prompts.get_prompt_template(
             question=question,
             choices=choices,
             num_frames=num_frames,
@@ -408,7 +408,7 @@ class InternVL3TrafficInference:
         verbose: bool = False
     ) -> str:
         """
-        Run inference on a single traffic video using official InternVL3 approach.
+        Run inference on a single video using official InternVL3 approach.
 
         Args:
             video_path: Path to video file
@@ -488,8 +488,8 @@ class InternVL3TrafficInference:
             video_prefix = ''.join([f'Frame{i+1}: <image>\n' for i in range(len(num_patches_list))])
             choices_str = "\n".join(choices)
 
-            # Use traffic-optimized prompt template
-            base_prompt = traffic_prompts.get_prompt_template(
+            # Use optimized prompt template
+            base_prompt = prompts.get_prompt_template(
                 question=question,
                 choices=choices,
                 num_frames=len(num_patches_list),
@@ -655,27 +655,27 @@ class InternVL3TrafficInference:
 
 
 def main():
-    """Example usage of the traffic inference pipeline."""
+    """Example usage of the inference pipeline."""
     from src import config
 
     # Initialize pipeline with optimized settings for 24GB VRAM
-    pipeline = InternVL3TrafficInference(
-        model_name=config.TRAFFIC_MODEL_NAME,
+    pipeline = InternVL3Inference(
+        model_name=config.INTERNVL_MODEL_NAME,
         device=config.DEVICE,
-        min_frames=config.TRAFFIC_MIN_FRAMES,
-        max_frames=config.TRAFFIC_MAX_FRAMES,
-        max_num=config.TRAFFIC_MAX_NUM,
-        use_support_frames=config.TRAFFIC_USE_SUPPORT_FRAMES,
-        load_in_8bit=config.TRAFFIC_LOAD_IN_8BIT,
-        load_in_4bit=config.TRAFFIC_LOAD_IN_4BIT,
+        min_frames=config.MIN_FRAMES,
+        max_frames=config.MAX_FRAMES,
+        max_num=config.INTERNVL_MAX_NUM,
+        use_support_frames=config.USE_SUPPORT_FRAMES,
+        load_in_8bit=config.INTERNVL_LOAD_IN_8BIT,
+        load_in_4bit=config.INTERNVL_LOAD_IN_4BIT,
     )
 
     # Run on test data
     pipeline.run_pipeline(
         test_json_path=config.PUBLIC_TEST_JSON,
         data_dir=config.DATA_DIR,
-        output_csv_path=config.TRAFFIC_OUTPUT_FILE,
-        verbose=config.TRAFFIC_VERBOSE
+        output_csv_path=config.INFERENCE_OUTPUT_FILE,
+        verbose=config.VERBOSE
     )
 
 

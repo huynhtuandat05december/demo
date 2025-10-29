@@ -1,16 +1,16 @@
 """
-Traffic-optimized prompt templates for video question answering.
+Optimized prompt templates for video question answering.
 
-Provides specialized prompts for dashcam traffic video analysis with
-temporal reasoning and traffic-specific context.
+Provides specialized prompts for dashcam video analysis with
+temporal reasoning and context-specific understanding.
 """
 
 import re
 from typing import List
 
 
-# English prompt for traffic video analysis
-TRAFFIC_PROMPT_EN = """You are analyzing dashcam footage from a traffic camera. You are seeing {num_frames} frames extracted from a video showing a traffic scenario.
+# English prompt for video analysis
+PROMPT_EN = """You are analyzing dashcam footage from a camera. You are seeing {num_frames} frames extracted from a video showing a scenario.
 
 Question: {question}
 
@@ -29,8 +29,8 @@ Respond with ONLY the letter (A, B, C, or D) of the correct answer. Do not inclu
 Your answer:"""
 
 
-# Vietnamese prompt for traffic video analysis
-TRAFFIC_PROMPT_VI = """Bạn đang phân tích video từ camera hành trình. Bạn đang xem {num_frames} khung hình được trích xuất từ video về một tình huống giao thông.
+# Vietnamese prompt for video analysis
+PROMPT_VI = """Bạn đang phân tích video từ camera hành trình. Bạn đang xem {num_frames} khung hình được trích xuất từ video về một tình huống giao thông.
 
 Câu hỏi: {question}
 
@@ -50,7 +50,7 @@ Câu trả lời của bạn:"""
 
 
 # Simple English prompt (more concise)
-TRAFFIC_PROMPT_EN_SIMPLE = """Watch these {num_frames} frames from a dashcam video and answer this traffic-related question:
+PROMPT_EN_SIMPLE = """Watch these {num_frames} frames from a dashcam video and answer this question:
 
 {question}
 
@@ -64,7 +64,7 @@ Answer:"""
 
 
 # Simple Vietnamese prompt (more concise)
-TRAFFIC_PROMPT_VI_SIMPLE = """Xem {num_frames} khung hình từ video camera hành trình và trả lời câu hỏi về giao thông:
+PROMPT_VI_SIMPLE = """Xem {num_frames} khung hình từ video camera hành trình và trả lời câu hỏi về giao thông:
 
 {question}
 
@@ -97,7 +97,7 @@ def detect_language(text: str) -> str:
     return 'en'
 
 
-def format_traffic_prompt(
+def format_prompt(
     question: str,
     choices: List[str],
     num_frames: int,
@@ -105,7 +105,7 @@ def format_traffic_prompt(
     simple: bool = False
 ) -> str:
     """
-    Format a traffic-optimized prompt for video question answering.
+    Format an optimized prompt for video question answering.
 
     Args:
         question: The question to ask
@@ -126,9 +126,9 @@ def format_traffic_prompt(
 
     # Select appropriate template
     if language == 'vi':
-        template = TRAFFIC_PROMPT_VI_SIMPLE if simple else TRAFFIC_PROMPT_VI
+        template = PROMPT_VI_SIMPLE if simple else PROMPT_VI
     else:
-        template = TRAFFIC_PROMPT_EN_SIMPLE if simple else TRAFFIC_PROMPT_EN
+        template = PROMPT_EN_SIMPLE if simple else PROMPT_EN
 
     # Format the prompt
     prompt = template.format(
@@ -214,8 +214,8 @@ def get_prompt_template(
         # Single frame - use single-frame prompt
         return format_single_frame_prompt(question, choices, language)
     else:
-        # Multiple frames - use traffic multi-frame prompt
-        return format_traffic_prompt(question, choices, num_frames, language, simple)
+        # Multiple frames - use multi-frame prompt
+        return format_prompt(question, choices, num_frames, language, simple)
 
 
 # Example usage and testing
@@ -242,14 +242,14 @@ if __name__ == "__main__":
     print("=" * 60)
     print("Vietnamese Multi-Frame Prompt (8 frames):")
     print("=" * 60)
-    print(format_traffic_prompt(question_vi, choices_vi, 8, language='vi'))
+    print(format_prompt(question_vi, choices_vi, 8, language='vi'))
     print()
 
     # Test English multi-frame prompt
     print("=" * 60)
     print("English Multi-Frame Prompt (8 frames):")
     print("=" * 60)
-    print(format_traffic_prompt(question_en, choices_en, 8, language='en'))
+    print(format_prompt(question_en, choices_en, 8, language='en'))
     print()
 
     # Test auto-detection
@@ -264,4 +264,4 @@ if __name__ == "__main__":
     print("=" * 60)
     print("Simple Template (Vietnamese):")
     print("=" * 60)
-    print(format_traffic_prompt(question_vi, choices_vi, 10, language='vi', simple=True))
+    print(format_prompt(question_vi, choices_vi, 10, language='vi', simple=True))
