@@ -42,7 +42,7 @@ class R4BAdapter(BaseModelAdapter):
         self.model = AutoModel.from_pretrained(
             self.model_name,
             trust_remote_code=self.trust_remote_code,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            torch_dtype=torch.float32,
         ).to(self.device)
         self.model.eval()
 
@@ -77,10 +77,9 @@ class R4BAdapter(BaseModelAdapter):
             padding=True,
         )
 
-        # Convert to model's dtype
-        model_dtype = torch.float16 if self.device == "cuda" else torch.float32
+        # Convert to float32
         return {
-            k: v.to(self.device).to(model_dtype) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
+            k: v.to(self.device).to(torch.float32) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
             for k, v in inputs.items()
         }
 
@@ -119,7 +118,7 @@ class InternVL3Adapter(BaseModelAdapter):
         self.model = AutoModel.from_pretrained(
             self.model_name,
             trust_remote_code=self.trust_remote_code,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            torch_dtype=torch.float32,
             low_cpu_mem_usage=True,
         ).to(self.device)
         self.model.eval()
@@ -133,7 +132,7 @@ class InternVL3Adapter(BaseModelAdapter):
     def prepare_inputs(self, frame: Image.Image, prompt: str) -> Dict[str, Any]:
         # InternVL3 uses a different format with pixel values
         pixel_values = self.model.load_image(frame, max_num=6).to(
-            torch.float16 if self.device == "cuda" else torch.float32
+            torch.float32
         ).to(self.device)
 
         # Format the conversation
@@ -178,7 +177,7 @@ class Qwen3VLAdapter(BaseModelAdapter):
         self.model = AutoModel.from_pretrained(
             self.model_name,
             trust_remote_code=self.trust_remote_code,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            torch_dtype=torch.float32,
         ).to(self.device)
         self.model.eval()
 
@@ -214,10 +213,9 @@ class Qwen3VLAdapter(BaseModelAdapter):
             padding=True,
         )
 
-        # Convert to model's dtype
-        model_dtype = torch.float16 if self.device == "cuda" else torch.float32
+        # Convert to float32
         return {
-            k: v.to(self.device).to(model_dtype) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
+            k: v.to(self.device).to(torch.float32) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
             for k, v in inputs.items()
         }
 

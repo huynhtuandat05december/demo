@@ -38,7 +38,7 @@ class R4BInferencePipeline:
         self.model = AutoModel.from_pretrained(
             model_name,
             trust_remote_code=config.TRUST_REMOTE_CODE,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            torch_dtype=torch.float32,
         ).to(device)
         self.model.eval()
 
@@ -159,10 +159,9 @@ class R4BInferencePipeline:
             padding=True,
         )
 
-        # Move inputs to device and convert to model's dtype
-        model_dtype = torch.float16 if self.device == "cuda" else torch.float32
+        # Move inputs to device and convert to float32
         inputs = {
-            k: v.to(self.device).to(model_dtype) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
+            k: v.to(self.device).to(torch.float32) if v.dtype in [torch.float32, torch.float16] else v.to(self.device)
             for k, v in inputs.items()
         }
 

@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from datetime import datetime
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -10,7 +11,10 @@ PUBLIC_TEST_DIR = DATA_DIR / "public_test"
 PUBLIC_TEST_JSON = PUBLIC_TEST_DIR / "public_test.json"
 VIDEOS_DIR = PUBLIC_TEST_DIR / "videos"
 OUTPUT_DIR = PROJECT_ROOT / "output"
-SUBMISSION_FILE = OUTPUT_DIR / "submission.csv"
+
+# Generate timestamp for unique output file
+TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
+SUBMISSION_FILE = OUTPUT_DIR / f"submission_{TIMESTAMP}.csv"
 
 # Model configuration
 # Supported models:
