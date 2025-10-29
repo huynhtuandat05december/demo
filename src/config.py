@@ -1,6 +1,5 @@
 """Configuration settings for the inference pipeline."""
 
-import os
 from pathlib import Path
 from datetime import datetime
 
@@ -34,7 +33,7 @@ USE_MID_FRAME_ONLY = False  # If True, only extract the middle frame
 # Note: THINKING_MODE is not supported by most vision-language models
 # It's only available for specific models like some Claude models
 # THINKING_MODE = "auto"  # "auto", "explicit", or "non-thinking"
-MAX_NEW_TOKENS = 512
+MAX_NEW_TOKENS = 10  # Only need to generate a single letter (A, B, C, or D)
 TEMPERATURE = 0.1  # Low temperature for more deterministic outputs
 DO_SAMPLE = False  # Use greedy decoding for consistent answers
 
