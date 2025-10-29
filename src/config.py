@@ -13,6 +13,10 @@ OUTPUT_DIR = PROJECT_ROOT / "output"
 SUBMISSION_FILE = OUTPUT_DIR / "submission.csv"
 
 # Model configuration
+# Supported models:
+# - "YannQi/R-4B"
+# - "OpenGVLab/InternVL3-8B"
+# - "Qwen/Qwen3-VL-8B-Instruct"
 MODEL_NAME = "YannQi/R-4B"
 DEVICE = "cuda"  # or "cpu"
 TRUST_REMOTE_CODE = True
