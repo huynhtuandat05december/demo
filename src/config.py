@@ -33,7 +33,7 @@ USE_MID_FRAME_ONLY = False  # If True, only extract the middle frame
 # Note: THINKING_MODE is not supported by most vision-language models
 # It's only available for specific models like some Claude models
 # THINKING_MODE = "auto"  # "auto", "explicit", or "non-thinking"
-MAX_NEW_TOKENS = 10  # Only need to generate a single letter (A, B, C, or D)
+MAX_NEW_TOKENS = 50  # Allow some buffer for response format
 TEMPERATURE = 0.1  # Low temperature for more deterministic outputs
 DO_SAMPLE = False  # Use greedy decoding for consistent answers
 
@@ -42,14 +42,15 @@ BATCH_SIZE = 1  # Process one question at a time (model handles one image-questi
 CACHE_FRAMES = True  # Cache extracted frames when multiple questions use same video
 
 # Prompt template
-PROMPT_TEMPLATE = """Dựa vào video này, hãy trả lời câu hỏi sau:
+PROMPT_TEMPLATE = """Watch the video and answer this question:
 
-Câu hỏi: {question}
+{question}
 
-Các lựa chọn:
 {choices}
 
-Hãy chọn đáp án đúng (chỉ trả lời A, B, C, hoặc D)."""
+IMPORTANT: Respond with ONLY one letter (A, B, C, or D). No explanations, no extra text, no Chinese characters. Just the letter.
+
+Your answer:"""
 
 # Answer parsing
 VALID_ANSWERS = ["A", "B", "C", "D"]
