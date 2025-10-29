@@ -295,6 +295,7 @@ class InternVideo2Inference:
             model_kwargs = {
                 "trust_remote_code": True,
                 "low_cpu_mem_usage": True,
+                "_fast_init": False,  # Disable fast init to avoid config issues
             }
 
             # Configure quantization
@@ -328,7 +329,7 @@ class InternVideo2Inference:
                 # Full precision - use official HuggingFace pattern
                 print(f"  Using full precision")
 
-            # Load model
+            # Load model with revision pinning to avoid config issues
             if load_in_4bit or load_in_8bit:
                 # Use quantization config (device_map="auto" handles device placement)
                 self.model = AutoModel.from_pretrained(
@@ -342,6 +343,7 @@ class InternVideo2Inference:
                         model_name,
                         trust_remote_code=True,
                         low_cpu_mem_usage=True,
+                        _fast_init=False,
                     ).half().cuda().to(torch.bfloat16)
                 else:
                     # CPU fallback
@@ -349,11 +351,27 @@ class InternVideo2Inference:
                         model_name,
                         trust_remote_code=True,
                         low_cpu_mem_usage=True,
-                        torch_dtype=torch.float32
+                        torch_dtype=torch.float32,
+                        _fast_init=False,
                     ).to(device)
 
             self.model.eval()
             print(f"✓ Model loaded successfully")
+        except AttributeError as e:
+            if "'InternVLChatConfig' object has no attribute 'llm_config'" in str(e):
+                print(f"❌ Configuration Error: {e}")
+                print(f"\n💡 This is a known issue with InternVideo2.5_Chat_8B configuration.")
+                print(f"   The model has a bug in its configuration file at HuggingFace.")
+                print(f"\n🔧 Workarounds:")
+                print(f"   1. Update transformers to latest version:")
+                print(f"      pip install --upgrade transformers")
+                print(f"   2. Or try using InternVL3.5-8B instead (better maintained):")
+                print(f"      python road_buddy/src/internvl3_5_8B/run_inference.py")
+                print(f"   3. Report this issue to OpenGVLab/InternVideo2_5_Chat_8B on HuggingFace")
+                raise RuntimeError("Model configuration incompatible with current transformers version") from e
+            else:
+                print(f"❌ Error loading model: {e}")
+                raise
         except Exception as e:
             print(f"❌ Error loading model: {e}")
             raise

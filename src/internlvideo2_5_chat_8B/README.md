@@ -2,12 +2,17 @@
 
 This module implements inference for the RoadBuddy traffic dataset using the **OpenGVLab/InternVideo2_5_Chat_8B** model.
 
+> **⚠️ KNOWN ISSUE**: This model currently has a configuration bug (`'InternVLChatConfig' object has no attribute 'llm_config'`) that may cause loading failures with some transformers versions. See [Troubleshooting](#configuration-error-internvlchatconfig-object-has-no-attribute-llm_config) below.
+>
+> **Recommended Alternative**: Use [InternVL3.5-8B](../internvl3_5_8B/) instead - it's better maintained, has Flash Attention support, and works reliably on 24GB VRAM.
+
 ## Model Information
 
 - **Model**: OpenGVLab/InternVideo2_5_Chat_8B
 - **Type**: Video Understanding Model
 - **Max Frames**: 512 frames per video
 - **HuggingFace Page**: https://huggingface.co/OpenGVLab/InternVideo2_5_Chat_8B
+- **Status**: ⚠️ Known configuration issues
 
 ## Installation
 
@@ -124,6 +129,31 @@ The inference pipeline:
 5. Parses multilingual responses to extract answers
 
 ## Troubleshooting
+
+### Configuration Error: 'InternVLChatConfig' object has no attribute 'llm_config'
+
+**This is a known issue** with the InternVideo2.5_Chat_8B model on HuggingFace.
+
+**Workarounds:**
+
+1. **Update transformers** (recommended):
+   ```bash
+   pip install --upgrade transformers
+   ```
+
+2. **Use InternVL3.5-8B instead** (better maintained, works on 24GB VRAM):
+   ```bash
+   python road_buddy/src/internvl3_5_8B/run_inference.py
+   ```
+
+3. **Alternative**: Use InternVL3-8B:
+   ```bash
+   python road_buddy/src/internvl3_8B/run_inference.py
+   ```
+
+4. **Report** this issue to [OpenGVLab/InternVideo2_5_Chat_8B](https://huggingface.co/OpenGVLab/InternVideo2_5_Chat_8B/discussions)
+
+**Note**: InternVL3.5-8B is recommended as it has Flash Attention support and is better maintained.
 
 ### Out of Memory Errors
 - Reduce `--max-frames` and `--max-num` parameters
