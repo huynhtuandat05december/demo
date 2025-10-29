@@ -66,12 +66,13 @@ TRAFFIC_INFERENCE_ENABLED = True
 
 # InternVL3-specific configuration
 TRAFFIC_MODEL_NAME = "OpenGVLab/InternVL3-8B"
-TRAFFIC_MAX_NUM = 24  # InternVL max patches per frame (higher = more detail, more memory)
-TRAFFIC_PRECISION = "float32"  # Use float32 for highest accuracy
+TRAFFIC_MAX_NUM = 12  # InternVL max patches per frame (12=balanced, 24=high detail/memory)
+TRAFFIC_LOAD_IN_8BIT = True  # Use 8-bit quantization (~50% memory reduction)
+TRAFFIC_LOAD_IN_4BIT = False  # Use 4-bit quantization (~75% memory reduction)
 
 # Frame extraction configuration
 TRAFFIC_MIN_FRAMES = 6  # Minimum frames for short videos (5-7 seconds)
-TRAFFIC_MAX_FRAMES = 12  # Maximum frames for long videos (13-15 seconds)
+TRAFFIC_MAX_FRAMES = 10  # Maximum frames for long videos (reduced from 12 for memory)
 TRAFFIC_USE_SUPPORT_FRAMES = True  # Use support_frames timestamps when available
 TRAFFIC_CONTEXT_WINDOW = 0.5  # Seconds of context around support frames
 

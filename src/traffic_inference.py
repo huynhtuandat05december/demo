@@ -179,6 +179,8 @@ class InternVL3TrafficInference:
         use_support_frames: bool = True,
         context_window: float = 0.5,
         simple_prompts: bool = False,
+        load_in_8bit: bool = False,
+        load_in_4bit: bool = False,
     ):
         """
         Initialize the traffic inference pipeline.
@@ -192,6 +194,8 @@ class InternVL3TrafficInference:
             use_support_frames: Whether to use support_frames timestamps from data
             context_window: Seconds of context around support frames (default: 0.5s)
             simple_prompts: If True, use simpler/shorter prompt templates
+            load_in_8bit: Use 8-bit quantization to reduce memory (~50% reduction)
+            load_in_4bit: Use 4-bit quantization to reduce memory (~75% reduction)
         """
         self.model_name = model_name
         self.device = device
@@ -201,6 +205,8 @@ class InternVL3TrafficInference:
         self.use_support_frames = use_support_frames
         self.context_window = context_window
         self.simple_prompts = simple_prompts
+        self.load_in_8bit = load_in_8bit
+        self.load_in_4bit = load_in_4bit
 
         print(f"\n{'='*60}")
         print(f"InternVL3 Traffic Inference Pipeline")
@@ -210,6 +216,12 @@ class InternVL3TrafficInference:
         print(f"Frame range: {min_frames}-{max_frames} frames (adaptive)")
         print(f"Max patches per frame: {max_num}")
         print(f"Support frames: {'Enabled' if use_support_frames else 'Disabled'}")
+        if load_in_4bit:
+            print(f"Quantization: 4-bit (memory optimized)")
+        elif load_in_8bit:
+            print(f"Quantization: 8-bit (memory optimized)")
+        else:
+            print(f"Quantization: None (full precision)")
         print(f"{'='*60}\n")
 
         # Warn about CPU usage
@@ -240,17 +252,38 @@ class InternVL3TrafficInference:
         # Load model
         print("Loading InternVL3-8B model...")
         try:
-            # Use bfloat16 for better compatibility and performance
-            torch_dtype = torch.bfloat16 if device == "cuda" and torch.cuda.is_available() else torch.float32
+            # Prepare model loading kwargs
+            model_kwargs = {
+                "trust_remote_code": True,
+                "low_cpu_mem_usage": True,
+            }
+
+            # Configure quantization
+            if load_in_4bit:
+                print("  Using 4-bit quantization (requires bitsandbytes)")
+                model_kwargs["load_in_4bit"] = True
+                model_kwargs["device_map"] = "auto"
+            elif load_in_8bit:
+                print("  Using 8-bit quantization (requires bitsandbytes)")
+                model_kwargs["load_in_8bit"] = True
+                model_kwargs["device_map"] = "auto"
+            else:
+                # Use bfloat16 for better compatibility and performance
+                torch_dtype = torch.bfloat16 if device == "cuda" and torch.cuda.is_available() else torch.float32
+                model_kwargs["torch_dtype"] = torch_dtype
+                print(f"  Using full precision (dtype: {torch_dtype})")
 
             self.model = AutoModel.from_pretrained(
                 model_name,
-                trust_remote_code=True,
-                torch_dtype=torch_dtype,
-                low_cpu_mem_usage=True,
-            ).to(device)
+                **model_kwargs
+            )
+
+            # Move to device if not using device_map (quantization)
+            if not (load_in_4bit or load_in_8bit):
+                self.model = self.model.to(device)
+
             self.model.eval()
-            print(f"✓ Model loaded successfully (dtype: {torch_dtype})")
+            print(f"✓ Model loaded successfully")
         except Exception as e:
             print(f"❌ Error loading model: {e}")
             raise
@@ -586,22 +619,24 @@ def main():
     """Example usage of the traffic inference pipeline."""
     from src import config
 
-    # Initialize pipeline
+    # Initialize pipeline with optimized settings for 24GB VRAM
     pipeline = InternVL3TrafficInference(
-        model_name="OpenGVLab/InternVL3-8B",
-        device="cuda",  # or "cpu"
-        min_frames=6,
-        max_frames=12,
-        max_num=24,
-        use_support_frames=True,
+        model_name=config.TRAFFIC_MODEL_NAME,
+        device=config.DEVICE,
+        min_frames=config.TRAFFIC_MIN_FRAMES,
+        max_frames=config.TRAFFIC_MAX_FRAMES,
+        max_num=config.TRAFFIC_MAX_NUM,
+        use_support_frames=config.TRAFFIC_USE_SUPPORT_FRAMES,
+        load_in_8bit=config.TRAFFIC_LOAD_IN_8BIT,
+        load_in_4bit=config.TRAFFIC_LOAD_IN_4BIT,
     )
 
     # Run on test data
     pipeline.run_pipeline(
         test_json_path=config.PUBLIC_TEST_JSON,
         data_dir=config.DATA_DIR,
-        output_csv_path=config.OUTPUT_DIR / "traffic_inference_results.csv",
-        verbose=False
+        output_csv_path=config.TRAFFIC_OUTPUT_FILE,
+        verbose=config.TRAFFIC_VERBOSE
     )
 
 

@@ -118,6 +118,23 @@ def test_traffic_inference():
         help="Use simpler/shorter prompt templates"
     )
     parser.add_argument(
+        "--load-in-8bit",
+        action="store_true",
+        default=config.TRAFFIC_LOAD_IN_8BIT,
+        help=f"Use 8-bit quantization to reduce memory usage (~50%% reduction) (default: {config.TRAFFIC_LOAD_IN_8BIT})"
+    )
+    parser.add_argument(
+        "--load-in-4bit",
+        action="store_true",
+        default=config.TRAFFIC_LOAD_IN_4BIT,
+        help=f"Use 4-bit quantization to reduce memory usage (~75%% reduction) (default: {config.TRAFFIC_LOAD_IN_4BIT})"
+    )
+    parser.add_argument(
+        "--no-quantization",
+        action="store_true",
+        help="Disable quantization (use full precision - requires more VRAM)"
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print detailed information for each sample"
@@ -130,6 +147,11 @@ def test_traffic_inference():
 
     args = parser.parse_args()
 
+    # Handle quantization flags
+    if args.no_quantization:
+        args.load_in_8bit = False
+        args.load_in_4bit = False
+
     print("\n" + "=" * 70)
     print("INTERNVL3 TRAFFIC INFERENCE TEST")
     print("=" * 70)
@@ -140,6 +162,12 @@ def test_traffic_inference():
     print(f"Max patches per frame: {args.max_num}")
     print(f"Support frames: {'Disabled' if args.no_support_frames else 'Enabled'}")
     print(f"Prompts: {'Simple' if args.simple_prompts else 'Detailed'}")
+    if args.load_in_4bit:
+        print(f"Quantization: 4-bit (memory optimized)")
+    elif args.load_in_8bit:
+        print(f"Quantization: 8-bit (memory optimized)")
+    else:
+        print(f"Quantization: None (full precision)")
     print(f"Test file: {args.test_json}")
     print("=" * 70 + "\n")
 
@@ -201,6 +229,8 @@ def test_traffic_inference():
             max_num=args.max_num,
             use_support_frames=not args.no_support_frames,
             simple_prompts=args.simple_prompts,
+            load_in_8bit=args.load_in_8bit,
+            load_in_4bit=args.load_in_4bit,
         )
         init_time = time.time() - start_time
         print(f"✓ Initialization complete in {format_duration(init_time)}\n")
@@ -209,11 +239,13 @@ def test_traffic_inference():
         if "out of memory" in str(e).lower():
             print(f"\n❌ CUDA Out of Memory Error!")
             print(f"\n💡 Suggestions:")
-            print(f"   1. Try running on CPU: --device cpu")
-            print(f"   2. Reduce frame count: --min-frames 4 --max-frames 8")
-            print(f"   3. Reduce max_num: --max-num 12")
-            print(f"   4. Close other GPU applications")
-            print(f"   5. Restart to clear GPU memory")
+            print(f"   1. Use 4-bit quantization: --load-in-4bit (recommended, ~75% memory reduction)")
+            print(f"   2. Use 8-bit quantization: --load-in-8bit (~50% memory reduction)")
+            print(f"   3. Reduce max_num: --max-num 12 or --max-num 6")
+            print(f"   4. Reduce frame count: --min-frames 4 --max-frames 8")
+            print(f"   5. Try running on CPU: --device cpu")
+            print(f"   6. Close other GPU applications")
+            print(f"   7. Restart to clear GPU memory")
             if torch.cuda.is_available():
                 print(f"\n📊 GPU Memory: {get_gpu_memory_info()}")
         sys.exit(1)
