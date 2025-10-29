@@ -260,13 +260,34 @@ class InternVL3TrafficInference:
 
             # Configure quantization
             if load_in_4bit:
+                from transformers import BitsAndBytesConfig
                 print("  Using 4-bit quantization (requires bitsandbytes)")
-                model_kwargs["load_in_4bit"] = True
+
+                # Configure 4-bit quantization with proper dtype
+                quantization_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_quant_type="nf4"
+                )
+                model_kwargs["quantization_config"] = quantization_config
                 model_kwargs["device_map"] = "auto"
+                model_kwargs["torch_dtype"] = torch.bfloat16
+
             elif load_in_8bit:
+                from transformers import BitsAndBytesConfig
                 print("  Using 8-bit quantization (requires bitsandbytes)")
-                model_kwargs["load_in_8bit"] = True
+
+                # Configure 8-bit quantization with proper dtype
+                quantization_config = BitsAndBytesConfig(
+                    load_in_8bit=True,
+                    llm_int8_threshold=6.0
+                )
+                model_kwargs["quantization_config"] = quantization_config
                 model_kwargs["device_map"] = "auto"
+                # Use float16 for 8-bit to avoid dtype mismatch
+                model_kwargs["torch_dtype"] = torch.float16
+
             else:
                 # Use bfloat16 for better compatibility and performance
                 torch_dtype = torch.bfloat16 if device == "cuda" and torch.cuda.is_available() else torch.float32
@@ -433,16 +454,34 @@ class InternVL3TrafficInference:
                 num_segments=num_segments
             )
 
-            # Move to device and convert dtype
+            # Move to device and convert dtype to match model
             if self.device == "cuda" and torch.cuda.is_available():
-                pixel_values = pixel_values.to(torch.bfloat16).cuda()
+                # Match the dtype used during model loading
+                if self.load_in_8bit:
+                    # 8-bit uses float16
+                    pixel_values = pixel_values.to(torch.float16).cuda()
+                else:
+                    # 4-bit and full precision use bfloat16
+                    pixel_values = pixel_values.to(torch.bfloat16).cuda()
             else:
                 pixel_values = pixel_values.to(torch.float32).to(self.device)
 
+            total_patches = sum(num_patches_list)
+
             if verbose:
                 print(f"  Loaded {len(num_patches_list)} frames")
-                print(f"  Total patches: {sum(num_patches_list)}")
+                print(f"  Total patches: {total_patches}")
                 print(f"  Pixel values shape: {pixel_values.shape}")
+
+            # Check if we might exceed token limit
+            # Each patch generates ~256 tokens, plus prompt tokens
+            estimated_tokens = total_patches * 256 + 500  # 500 for prompt
+            max_context_length = 12288  # InternVL3-8B max context
+
+            if estimated_tokens > max_context_length:
+                print(f"⚠️  WARNING: Estimated tokens ({estimated_tokens}) may exceed max context ({max_context_length})")
+                print(f"   Consider reducing --max-num or --max-frames")
+                # Don't fail, let the model handle it
 
             # Format prompt with frame prefixes (InternVL3 style)
             # Frame1: <image>\nFrame2: <image>\n...\n{question}
